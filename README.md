@@ -1,6 +1,8 @@
 # Study Planner — Agriculture Students
 
-A shared study-plan tracker with per-user checkbox progress, backed by Firebase (Auth + Firestore).
+A shared 90-day study-plan tracker with per-user checkbox progress, backed by Firebase (Auth +
+Firestore). Every registered user can manage the shared plan (tasks, events, dates) from their
+own **My Profile** page — there is no separate admin account or dashboard.
 
 ## Structure
 
@@ -11,33 +13,34 @@ study-planner/
 ├── README.md
 ├── firebase.json        # Firebase Hosting + Firestore config
 ├── firestore.rules      # Firestore security rules
-├── index.html           # Main app: login, tracker, calendar, profile, reports, daily tracker
-├── admin.html           # Admin-only dashboard: export/backup, reset, cross-user analytics
-├── bulk-import.html     # Admin-only: bulk CSV task import
+├── index.html           # The entire app: login, tracker, calendar, profile (incl. plan
+│                         #   management + data/backup), reports, daily tracker
 ├── css/
-│   └── style.css        # All styles for index.html
+│   └── style.css        # All styles
 └── js/
-    └── script.js        # All app logic for index.html (Firebase init, rendering, event handlers)
+    └── script.js        # All app logic (Firebase init, rendering, event handlers)
 ```
-
-`admin.html` and `bulk-import.html` are self-contained (styles/scripts inlined) — they're standalone
-admin tools, not part of the main user-facing app, so they aren't split into `css/`/`js/`.
 
 ## Setup
 
 1. Create a Firebase project and enable **Authentication** (Email/Password) and **Firestore**.
 2. Replace `YOUR_FIREBASE_PROJECT_ID` in `.firebaserc` with your actual project ID.
-3. Confirm the Firebase config object inside `js/script.js` (and inside `admin.html` /
-   `bulk-import.html`) matches your project's config.
-4. Set `ADMIN_EMAIL` consistently in `js/script.js`, `admin.html`, and `bulk-import.html` — this
-   must exactly match the value in `firestore.rules`'s `isAdmin()` check, or admin writes will be
-   silently rejected by Firestore even though the UI shows admin controls.
-5. Deploy:
+3. Confirm the `firebaseConfig` object inside `js/script.js` matches your project's config.
+4. Deploy:
    ```bash
    npm install -g firebase-tools   # if not already installed
    firebase login
    firebase deploy
    ```
+
+## Note on shared write access
+
+Any signed-up user can add/edit/delete tasks and events and change the plan's start/end dates —
+this is intentional, so the group can self-manage without a gatekeeper, but it does mean one
+person's mistake affects everyone's view. Each user's own daily checkbox progress and Daily
+Tracker stay private to them (enforced by `firestore.rules`, not just the UI). The **Data &
+Backup** tab on the Profile page lets anyone export a JSON/CSV backup of the shared plan, or
+reset it, so mistakes are recoverable.
 
 ## Notes
 

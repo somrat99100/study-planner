@@ -1,47 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ⚠️ Must exactly match ADMIN_EMAIL in index.html / admin.html / bulk-import.html
+    // Every registered (signed-in) user is treated as a co-manager of the
+    // shared plan — there is no separate admin role. Anyone who can log in
+    // can add/edit/delete tasks & events and change the plan's dates. This
+    // is an intentional tradeoff (see README) in exchange for a simpler,
+    // fully self-service planner.
     function isSignedIn() {
       return request.auth != null;
     }
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'iubatagriculture@gmail.com';
-    }
     // Task templates (name/category/days/desc). Readable by anyone so the
-    // public tracker can render the plan, but only the admin account can
-    // create/edit/delete them — regular users never touch this collection.
+    // public tracker can render the plan; writable by any signed-in user.
     match /tasks/{taskId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isSignedIn();
     }
     match /events/{eventId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isSignedIn();
     }
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
     // Each logged-in user's own checkbox progress on the shared task list.
     // A user can only ever read or write their own uid's subcollection —
     // there is no path by which one user can see or change another's data,
     // and this rule is enforced by Firestore itself, not just the UI.
-    // The admin account gets read-only access across everyone's progress so
-    // admin.html can show real completion counts — it still can never write
-    // to another user's progress.
     match /users/{userId}/progress/{taskId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
     // Each logged-in user's own Daily Tracker doc (self-defined categories,
-    // day-check progress, and study-timer totals). Same isolation pattern
-    // as progress above: a user can only ever read/write their own uid's
-    // doc. Admin gets read-only visibility, matching the progress rule,
-    // in case admin.html is ever extended to show Daily Tracker activity.
+    // day-check progress, and study-timer totals). Private to that user.
     match /dailyTrackers/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
     // Default deny — anything not explicitly matched above is blocked.
     match /{document=**} {

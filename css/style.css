@@ -542,6 +542,17 @@
       color: var(--cream);
     }
 
+    .btn-danger {
+      background: var(--terracotta);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-danger:hover {
+      background: #c2593f;
+      box-shadow: var(--shadow-lg);
+    }
+
     .btn-sm {
       padding: 6px 12px;
       font-size: 0.85rem;
@@ -701,32 +712,6 @@
       margin-top: 10px;
       font-size: 0.85rem;
       min-height: 1em;
-    }
-
-    /* ─── PROFILE BADGE ─── */
-    .profile-chip {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .profile-name {
-      font-size: 0.85rem;
-      font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 20px;
-      background: var(--cream-90);
-      color: var(--text-main);
-      white-space: nowrap;
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .profile-name.is-admin {
-      background: linear-gradient(135deg, var(--terracotta-light), var(--terracotta));
-      color: #fff;
     }
 
     /* ─── WEEKLY PROGRESS SUMMARY ─── */
@@ -900,15 +885,140 @@
       border-radius: 8px;
     }
 
-    .admin-tag {
-      display: inline-block;
-      background: linear-gradient(135deg, var(--terracotta-light), var(--terracotta));
-      color: #fff;
-      font-size: 0.72rem;
+    /* ─── UNIFIED PROFILE SHELL (Account / Plan / Tasks / Events / Data) ─── */
+    .profile-shell-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .profile-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .profile-tab {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 20px;
+      cursor: pointer;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-mut);
+      transition: all 0.15s;
+    }
+
+    .profile-tab:hover {
+      border-color: var(--moss);
+      color: var(--moss);
+    }
+
+    .profile-tab.active {
+      background: var(--moss);
+      color: var(--cream);
+      border-color: var(--moss);
+    }
+
+    .profile-panel {
+      animation: fadeIn 0.2s ease;
+    }
+
+    .profile-hr {
+      margin: 20px 0;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    .inline-list-scroll {
+      max-height: 280px;
+      overflow-y: auto;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .stat-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .stat-mini {
+      background: var(--cream-90);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-mini-value {
+      font-family: var(--serif);
+      font-size: 1.4rem;
       font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 12px;
-      margin-bottom: 12px;
+      color: var(--moss-dark);
+    }
+
+    .stat-mini-label {
+      font-size: 0.72rem;
+      color: var(--text-mut);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    @media (max-width: 480px) {
+      .profile-tabs { gap: 4px; }
+      .profile-tab { padding: 7px 10px; font-size: 0.78rem; }
+    }
+
+    /* ─── TOAST POPUPS (success / error) ─── */
+    .toast-wrap {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: min(360px, calc(100vw - 32px));
+    }
+
+    .toast {
+      background: var(--text-main);
+      color: var(--cream);
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-lg);
+      font-size: 0.88rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: toastIn 0.25s ease;
+    }
+
+    .toast.success { background: var(--moss-dark); }
+    .toast.error { background: var(--terracotta); color: #fff; }
+
+    .toast.hide {
+      animation: toastOut 0.25s ease forwards;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
     }
 
     .profile-msg {

@@ -1,5 +1,5 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { initializeFirestore, persistentLocalCache, collection, getDocs, addDoc, updateDoc, deleteDoc, setDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { initializeFirestore, persistentLocalCache, collection, getDocs, addDoc, updateDoc, deleteDoc, setDoc, doc, getDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     // ───────────────────────────
@@ -28,10 +28,6 @@
       localCache: persistentLocalCache()
     });
     const auth = getAuth(app);
-
-    // ⚠️ Must exactly match ADMIN_EMAIL in admin.html / bulk-import.html
-    // and the isAdmin() check in firestore.rules.
-    const ADMIN_EMAIL = "iubatagriculture@gmail.com";
 
     // Fixed display order for categories within a week (used for sorting
     // and for finding the "next" incomplete task in Today's Focus).
@@ -71,6 +67,22 @@
       document.getElementById('loadOverlay').style.display = 'flex';
     }
 
+    // Small popup notification (success/error) in the top-right corner —
+    // used instead of native alert()/confirm() for anything that isn't a
+    // destructive confirmation. Auto-dismisses after ~3.5s.
+    function showToast(message, type = 'success') {
+      const wrap = document.getElementById('toastWrap');
+      if (!wrap) return;
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.textContent = message;
+      wrap.appendChild(el);
+      setTimeout(() => {
+        el.classList.add('hide');
+        setTimeout(() => el.remove(), 250);
+      }, 3500);
+    }
+
     // Pulls the week number out of a task name like "Week 3" → 3. Falls
     // back to 0 (sorts first) if the name doesn't contain a number.
     function weekNumOf(name) {
@@ -83,16 +95,15 @@
     // ───────────────────────────
     let appState = {
       plan: {
-        title: "100-Day Study Plan",
+        title: "90-Day Study Plan",
         startDate: new Date(2026, 6, 12), // July 12, 2026
-        totalDays: 90,
-        categories: [],
-        weeks: []
+        totalDays: 90, // 90-day target — kept in sync with initApp() below and
+                       // overridden once a real settings/plan doc is saved
+        categories: []
       },
       events: [],
       currentWeek: 1,
       user: null,
-      isAdmin: false,
       progress: {} // { [taskId]: completedCount } for the signed-in user
     };
 
@@ -108,15 +119,12 @@
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           appState.user = user;
-          appState.isAdmin = user.email === ADMIN_EMAIL;
 
           document.getElementById('loginGate').style.display = 'none';
           document.getElementById('appContent').style.display = '';
           showLoadOverlay();
 
           document.getElementById('profileEmailDisplay').textContent = user.email;
-          document.getElementById('profileAdminTag').style.display = appState.isAdmin ? '' : 'none';
-          document.getElementById('adminManageCard').style.display = appState.isAdmin ? '' : 'none';
           document.getElementById('profileDisplayName').value = user.displayName || '';
 
           try {
@@ -149,8 +157,8 @@
           }
         } else {
           appState.user = null;
-          appState.isAdmin = false;
           appState.progress = {};
+          teardownListeners();
           hideLoadOverlay();
           document.getElementById('loginGate').style.display = 'flex';
           document.getElementById('appContent').style.display = 'none';
@@ -210,14 +218,11 @@
     }
 
     function initApp() {
-      // Week 1 = 7 days; this is recalculated when data loads
-      appState.plan.totalDays = 100; // 14-15 weeks
-      for (let w = 1; w <= 15; w++) {
-        appState.plan.weeks.push({
-          wk: w,
-          rows: []
-        });
-      }
+      // 90-day target = 90/7 ≈ 13 weeks. This is just the fallback shown
+      // before any data has loaded (or before a settings/plan doc exists) —
+      // loadData() recalculates the real totalDays from the saved start/end
+      // dates the moment they're available.
+      appState.plan.totalDays = 90;
     }
 
     function setupEventListeners() {
@@ -242,6 +247,23 @@
       document.getElementById('addEventBtn').addEventListener('click', addEventInline);
       document.getElementById('cancelEventEditBtn').addEventListener('click', cancelEventEdit);
 
+      // Profile sub-tabs (Account / Plan Duration / Tasks / Events / Data & Backup) —
+      // one unified page instead of separate cards.
+      document.querySelectorAll('.profile-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const target = tab.dataset.ptab;
+          document.querySelectorAll('.profile-tab').forEach(t => t.classList.toggle('active', t === tab));
+          document.querySelectorAll('.profile-panel').forEach(p => {
+            p.style.display = p.dataset.ppanel === target ? '' : 'none';
+          });
+        });
+      });
+
+      // Data & Backup actions
+      document.getElementById('exportJsonBtn').addEventListener('click', exportJSONBackup);
+      document.getElementById('exportCsvBtn').addEventListener('click', exportTasksCSV);
+      document.getElementById('resetAllBtn').addEventListener('click', resetAllData);
+
       // Daily Tracker actions
       document.getElementById('dtAddCatBtn').addEventListener('click', () => dtAddCatRow());
       document.getElementById('dtGenerateBtn').addEventListener('click', dtGenerateTracker);
@@ -265,67 +287,110 @@
     // ───────────────────────────
     // DATA MANAGEMENT
     // ───────────────────────────
-    async function loadData() {
-      try {
-        // These 4 reads are completely independent of each other, so fire them
-        // all at once instead of waiting for each round trip in sequence —
-        // this alone cuts initial-load time roughly to the length of the
-        // single slowest request instead of the sum of all four.
-        const progressPromise = appState.user
-          ? getDocs(collection(db, "users", appState.user.uid, "progress")).catch(error => {
-              console.error("Error loading user progress:", error);
-              return null;
-            })
-          : Promise.resolve(null);
+    let unsubTasks = null, unsubEvents = null, unsubPlan = null;
+    let latestTasks = [];
 
-        const planPromise = getDoc(doc(db, "settings", "plan")).catch(error => {
-          console.error("Error loading plan settings:", error);
-          return null;
+    function teardownListeners() {
+      if (unsubTasks) { unsubTasks(); unsubTasks = null; }
+      if (unsubEvents) { unsubEvents(); unsubEvents = null; }
+      if (unsubPlan) { unsubPlan(); unsubPlan = null; }
+      latestTasks = [];
+    }
+
+    // Merge: the shared task doc supplies name/category/days/desc; the
+    // signed-in user's own progress doc supplies how many days *they*
+    // completed. Re-run whenever either side changes.
+    function applyCategoriesFromTasksAndProgress() {
+      appState.plan.categories = latestTasks.map(t => ({
+        ...t,
+        completed: appState.progress[t.id] || 0
+      }));
+    }
+
+    // Sets up live listeners on the shared tasks/events/plan-settings docs.
+    // Any signed-in user can now edit these, so the whole app stays in sync
+    // in real time — no more "reload the whole collection, then re-render"
+    // round trip after every add/edit/delete. The returned Promise resolves
+    // once the FIRST snapshot of everything has arrived (same "data is
+    // ready" contract the old one-time-read loadData() had); every snapshot
+    // after that just repaints in place.
+    function loadData() {
+      return new Promise((resolve) => {
+        let tasksReady = false, eventsReady = false, planReady = false, progressReady = false;
+        let settled = false;
+
+        function maybeResolve() {
+          if (settled || !(tasksReady && eventsReady && planReady && progressReady)) return;
+          settled = true;
+          resolve();
+        }
+        function repaintIfLive() {
+          if (settled) render();
+        }
+
+        // Own progress — a one-time read is enough since only this user
+        // ever changes their own progress subcollection.
+        (appState.user
+          ? getDocs(collection(db, "users", appState.user.uid, "progress"))
+          : Promise.resolve({ docs: [] })
+        ).then(progSnap => {
+          appState.progress = {};
+          progSnap.docs.forEach(d => { appState.progress[d.id] = d.data().completed || 0; });
+          applyCategoriesFromTasksAndProgress();
+          progressReady = true;
+          maybeResolve();
+        }).catch(error => {
+          console.error("Error loading user progress:", error);
+          progressReady = true;
+          maybeResolve();
         });
 
-        const [tasksSnap, progSnap, eventsSnap, planSnap] = await Promise.all([
-          getDocs(collection(db, "tasks")),
-          progressPromise,
-          getDocs(collection(db, "events")),
-          planPromise
-        ]);
+        unsubTasks = onSnapshot(collection(db, "tasks"), snap => {
+          latestTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          applyCategoriesFromTasksAndProgress();
+          tasksReady = true;
+          maybeResolve();
+          repaintIfLive();
+        }, error => {
+          console.error("Error loading tasks:", error);
+          tasksReady = true;
+          maybeResolve();
+        });
 
-        const tasks = tasksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        unsubEvents = onSnapshot(collection(db, "events"), snap => {
+          appState.events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          eventsReady = true;
+          maybeResolve();
+          repaintIfLive();
+        }, error => {
+          console.error("Error loading events:", error);
+          eventsReady = true;
+          maybeResolve();
+        });
 
-        // Load this signed-in user's own progress subcollection. Firestore
-        // rules guarantee this query can only ever return their own docs.
-        appState.progress = {};
-        if (progSnap) {
-          progSnap.docs.forEach(d => {
-            appState.progress[d.id] = d.data().completed || 0;
-          });
-        }
-
-        // Merge: the shared task doc supplies name/category/days/desc; the
-        // user's own progress doc supplies how many days *they* completed.
-        appState.plan.categories = tasks.map(t => ({
-          ...t,
-          completed: appState.progress[t.id] || 0
-        }));
-
-        appState.events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        // Plan-wide start/end date, editable by the admin from My Profile.
-        // Falls back to the hardcoded defaults set in initApp() if no
-        // settings doc has been saved yet.
-        if (planSnap && planSnap.exists()) {
-          const p = planSnap.data();
-          if (p.startDate) appState.plan.startDate = new Date(p.startDate + 'T00:00:00');
-          if (p.endDate) {
-            appState.plan.endDate = p.endDate;
-            const s = new Date(p.startDate + 'T00:00:00');
-            const e = new Date(p.endDate + 'T00:00:00');
-            appState.plan.totalDays = Math.max(1, Math.round((e - s) / 86400000) + 1);
+        // Plan-wide start/end date, editable by any user from My Profile.
+        // Falls back to the defaults set in initApp() if no settings doc
+        // has been saved yet.
+        unsubPlan = onSnapshot(doc(db, "settings", "plan"), snap => {
+          if (snap.exists()) {
+            const p = snap.data();
+            if (p.startDate) appState.plan.startDate = new Date(p.startDate + 'T00:00:00');
+            if (p.endDate) {
+              appState.plan.endDate = p.endDate;
+              const s = new Date(p.startDate + 'T00:00:00');
+              const e = new Date(p.endDate + 'T00:00:00');
+              appState.plan.totalDays = Math.max(1, Math.round((e - s) / 86400000) + 1);
+            }
           }
-        }
-      } catch (error) {
-        console.error("Error loading data:", error);
-      }
+          planReady = true;
+          maybeResolve();
+          repaintIfLive();
+        }, error => {
+          console.error("Error loading plan settings:", error);
+          planReady = true;
+          maybeResolve();
+        });
+      });
     }
 
     // ───────────────────────────
@@ -533,7 +598,7 @@
 
       if (weekCats.length === 0) {
         sub.textContent = '';
-        grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><p>No tasks for this week yet. Add tasks in the Admin panel.</p></div>';
+        grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><p>No tasks for this week yet. Add tasks from My Profile.</p></div>';
         return;
       }
 
@@ -624,7 +689,7 @@
         renderWeeklySummary();
         renderTodaysFocus();
         updateTimelinePanel();
-        alert('Could not save that change — please check your connection and try again.');
+        showToast('Could not save that change — please check your connection and try again.', 'error');
       }
     }
 
@@ -651,7 +716,7 @@
       metaEl.textContent = `📅 ${todayName} · Week ${todayWeek}, Day ${todayDayIndex + 1} of 7`;
 
       if (weekCats.length === 0) {
-        focusEl.innerHTML = '<div class="text-muted" style="font-size:0.9rem;">📋 No tasks assigned yet for this week. Check the Admin panel.</div>';
+        focusEl.innerHTML = '<div class="text-muted" style="font-size:0.9rem;">📋 No tasks assigned yet for this week. Check My Profile.</div>';
         return;
       }
 
@@ -697,54 +762,166 @@
     }
 
     // ───────────────────────────
-    // PROFILE VIEW — account settings + embedded admin management
+    // PROFILE VIEW — account settings + shared plan management + backup,
+    // unified into one page. Every signed-in user gets the full page.
     // ───────────────────────────
     function renderProfileView() {
       if (!appState.user) return;
 
-      if (appState.isAdmin) {
-        document.getElementById('pfPlanStartDate').value = toISODate(appState.plan.startDate);
-        const end = new Date(new Date(appState.plan.startDate).getTime() + (appState.plan.totalDays - 1) * 86400000);
-        document.getElementById('pfPlanEndDate').value = toISODate(end);
+      document.getElementById('pfPlanStartDate').value = toISODate(appState.plan.startDate);
+      const end = new Date(new Date(appState.plan.startDate).getTime() + (appState.plan.totalDays - 1) * 86400000);
+      document.getElementById('pfPlanEndDate').value = toISODate(end);
 
-        const taskListEl = document.getElementById('pfTaskList');
-        const ordered = [...appState.plan.categories].sort((a, b) => {
-          const wkDiff = weekNumOf(a.name) - weekNumOf(b.name);
-          if (wkDiff !== 0) return wkDiff;
-          return CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
-        });
+      const taskListEl = document.getElementById('pfTaskList');
+      const ordered = [...appState.plan.categories].sort((a, b) => {
+        const wkDiff = weekNumOf(a.name) - weekNumOf(b.name);
+        if (wkDiff !== 0) return wkDiff;
+        return CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+      });
 
-        taskListEl.innerHTML = ordered.length
-          ? ordered.map(t => `
+      taskListEl.innerHTML = ordered.length
+        ? ordered.map(t => `
+            <div class="inline-list-row">
+              <span><strong>${escapeHTML(t.name)}</strong> · ${escapeHTML(t.category)} · ${Number(t.days) || 0} days${t.desc ? ' — ' + escapeHTML(t.desc) : ''}</span>
+              <div class="row-actions">
+                <button class="btn btn-sm btn-secondary" onclick="editTaskInline('${t.id}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteTaskInline('${t.id}')">Delete</button>
+              </div>
+            </div>
+          `).join('')
+        : '<div class="inline-list-row text-muted">No tasks yet.</div>';
+
+      const eventListEl = document.getElementById('pfEventList');
+      const orderedEvents = [...appState.events].sort((a, b) => new Date(eventDateRange(a).start) - new Date(eventDateRange(b).start));
+      eventListEl.innerHTML = orderedEvents.length
+        ? orderedEvents.map(e => {
+            const { start, end } = eventDateRange(e);
+            const dateLabel = !start ? '—' : (start === end
+              ? new Date(start).toLocaleDateString('en-GB')
+              : `${new Date(start).toLocaleDateString('en-GB')} – ${new Date(end).toLocaleDateString('en-GB')}`);
+            return `
               <div class="inline-list-row">
-                <span><strong>${escapeHTML(t.name)}</strong> · ${escapeHTML(t.category)} · ${Number(t.days) || 0} days${t.desc ? ' — ' + escapeHTML(t.desc) : ''}</span>
+                <span><strong>${escapeHTML(e.title)}</strong> · ${dateLabel} · ${escapeHTML(e.type || '')}</span>
                 <div class="row-actions">
-                  <button class="btn btn-sm btn-secondary" onclick="editTaskInline('${t.id}')">Edit</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteTaskInline('${t.id}')">Delete</button>
+                  <button class="btn btn-sm btn-secondary" onclick="editEventInline('${e.id}')">Edit</button>
+                  <button class="btn btn-sm btn-danger" onclick="deleteEventInline('${e.id}')">Delete</button>
                 </div>
               </div>
-            `).join('')
-          : '<div class="inline-list-row text-muted">No tasks yet.</div>';
+            `;
+          }).join('')
+        : '<div class="inline-list-row text-muted">No events yet.</div>';
 
-        const eventListEl = document.getElementById('pfEventList');
-        const orderedEvents = [...appState.events].sort((a, b) => new Date(eventDateRange(a).start) - new Date(eventDateRange(b).start));
-        eventListEl.innerHTML = orderedEvents.length
-          ? orderedEvents.map(e => {
-              const { start, end } = eventDateRange(e);
-              const dateLabel = !start ? '—' : (start === end
-                ? new Date(start).toLocaleDateString('en-GB')
-                : `${new Date(start).toLocaleDateString('en-GB')} – ${new Date(end).toLocaleDateString('en-GB')}`);
-              return `
-                <div class="inline-list-row">
-                  <span><strong>${escapeHTML(e.title)}</strong> · ${dateLabel} · ${escapeHTML(e.type || '')}</span>
-                  <div class="row-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editEventInline('${e.id}')">Edit</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteEventInline('${e.id}')">Delete</button>
-                  </div>
-                </div>
-              `;
-            }).join('')
-          : '<div class="inline-list-row text-muted">No events yet.</div>';
+      renderDataStats();
+    }
+
+    // Cheap summary stats for the Data & Backup tab — built entirely from
+    // data already sitting in appState (no extra Firestore reads), so
+    // opening this tab never costs a network round trip.
+    function renderDataStats() {
+      const statsEl = document.getElementById('dataStats');
+      if (!statsEl) return;
+      const totalTasks = appState.plan.categories.length;
+      const totalEvents = appState.events.length;
+      const numWeeks = Math.max(0, ...appState.plan.categories.map(c => weekNumOf(c.name)), 0);
+      const numCats = new Set(appState.plan.categories.map(c => c.category)).size;
+
+      const stats = [
+        { label: 'Total Tasks', value: totalTasks },
+        { label: 'Weeks Planned', value: numWeeks },
+        { label: 'Categories', value: numCats },
+        { label: 'Events', value: totalEvents }
+      ];
+      statsEl.innerHTML = stats.map(s => `
+        <div class="stat-mini">
+          <div class="stat-mini-value">${s.value}</div>
+          <div class="stat-mini-label">${escapeHTML(s.label)}</div>
+        </div>
+      `).join('');
+    }
+
+    // ───────────────────────────
+    // DATA & BACKUP — replaces the old standalone admin.html dashboard.
+    // Export/CSV are built entirely from state already in memory (no extra
+    // Firestore reads); reset is the only feature that talks to the network.
+    // ───────────────────────────
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportJSONBackup() {
+      const data = {
+        plan: {
+          title: appState.plan.title,
+          startDate: toISODate(appState.plan.startDate),
+          totalDays: appState.plan.totalDays
+        },
+        // Shared task/event fields only — intentionally excludes each
+        // student's personal completed-day counts, which live in their own
+        // private progress subcollection and aren't part of "the plan".
+        tasks: appState.plan.categories.map(({ completed, ...t }) => t),
+        events: appState.events,
+        exportedAt: new Date().toISOString()
+      };
+      downloadBlob(
+        new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+        `study-plan-backup-${toISODate(new Date())}.json`
+      );
+      showToast('Backup downloaded.', 'success');
+    }
+
+    function exportTasksCSV() {
+      const csvField = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      let csv = 'Week,Category,Target Days,Description\n';
+      [...appState.plan.categories]
+        .sort((a, b) => weekNumOf(a.name) - weekNumOf(b.name))
+        .forEach(t => {
+          csv += [csvField(t.name), csvField(t.category), Number(t.days) || 0, csvField(t.desc)].join(',') + '\n';
+        });
+      downloadBlob(
+        new Blob([csv], { type: 'text/csv' }),
+        `study-plan-tasks-${toISODate(new Date())}.csv`
+      );
+      showToast('CSV downloaded.', 'success');
+    }
+
+    async function resetAllData() {
+      const msgEl = document.getElementById('pfDataMsg');
+      const taskCount = appState.plan.categories.length;
+      const eventCount = appState.events.length;
+
+      if (!taskCount && !eventCount) {
+        showToast('Nothing to reset — the plan is already empty.', 'error');
+        return;
+      }
+      if (!confirm(`This will permanently delete all ${taskCount} task(s) and ${eventCount} event(s) for everyone. Export a backup first if you haven't. Continue?`)) return;
+      if (prompt('Type DELETE (all caps) to confirm — this cannot be undone:') !== 'DELETE') {
+        showToast('Reset cancelled — nothing was deleted.', 'error');
+        return;
+      }
+
+      msgEl.textContent = 'Deleting…';
+      try {
+        const targets = [
+          ...appState.plan.categories.map(t => ({ col: 'tasks', id: t.id })),
+          ...appState.events.map(e => ({ col: 'events', id: e.id }))
+        ];
+        // Firestore batches cap at 500 writes — chunk defensively in case
+        // the plan ever grows past that.
+        for (let i = 0; i < targets.length; i += 400) {
+          const batch = writeBatch(db);
+          targets.slice(i, i + 400).forEach(({ col, id }) => batch.delete(doc(db, col, id)));
+          await batch.commit();
+        }
+        msgEl.textContent = '';
+        showToast('All tasks and events have been reset.', 'success');
+      } catch (error) {
+        msgEl.textContent = `Could not reset: ${error.code || error.message}`;
+        showToast('Could not complete reset.', 'error');
       }
     }
 
@@ -811,7 +988,7 @@
       }
 
       // Weeks always need to begin on Sunday (Day 1 = Sunday, ... Day 7 = Saturday).
-      // If the admin picks a start date that isn't a Sunday, roll it back to the
+      // If a user picks a start date that isn't a Sunday, roll it back to the
       // Sunday on/before the picked date, so the picked date still falls inside
       // Week 1 — rather than silently starting the week on the wrong weekday.
       const pickedStart = new Date(startVal + 'T00:00:00');
@@ -844,7 +1021,7 @@
     }
 
     // ───────────────────────────
-    // TASK ADD / EDIT / DELETE (admin)
+    // TASK ADD / EDIT / DELETE (any signed-in user)
     // ───────────────────────────
     let editingTaskId = null;
 
@@ -859,7 +1036,7 @@
     }
 
     // Populates the Add Task form with an existing task's values and
-    // switches the form into "update" mode, so admins can change a
+    // switches the form into "update" mode, so a user can change a
     // category's target/days without deleting and re-creating it.
     window.editTaskInline = function(taskId) {
       const t = appState.plan.categories.find(c => c.id === taskId);
@@ -893,17 +1070,21 @@
         return;
       }
 
+      const wasEditing = !!editingTaskId;
       try {
         if (editingTaskId) {
           await updateDoc(doc(db, "tasks", editingTaskId), { name, category, days, desc });
         } else {
           await addDoc(collection(db, "tasks"), { name, category, days, desc, completed: 0, createdAt: new Date() });
         }
+        // No manual reload needed — the live tasks listener (see loadData())
+        // picks this up and repaints automatically, including for everyone
+        // else currently viewing the plan.
         resetTaskForm();
-        await loadData();
-        render();
+        showToast(wasEditing ? 'Task updated.' : 'Task added.', 'success');
       } catch (error) {
         msgEl.textContent = `Could not save task: ${error.code || error.message}`;
+        showToast('Could not save task.', 'error');
       }
     }
 
@@ -912,15 +1093,14 @@
       try {
         await deleteDoc(doc(db, "tasks", taskId));
         if (editingTaskId === taskId) resetTaskForm();
-        await loadData();
-        render();
+        showToast('Task deleted.', 'success');
       } catch (error) {
-        alert(`Could not delete task: ${error.code || error.message}`);
+        showToast(`Could not delete task: ${error.code || error.message}`, 'error');
       }
     }
 
     // ───────────────────────────
-    // EVENT ADD / EDIT / DELETE (admin)
+    // EVENT ADD / EDIT / DELETE (any signed-in user)
     // ───────────────────────────
     let editingEventId = null;
 
@@ -981,17 +1161,20 @@
       }
       if (!endDate) endDate = startDate;
 
+      const wasEditing = !!editingEventId;
       try {
         if (editingEventId) {
           await updateDoc(doc(db, "events", editingEventId), { title, startDate, endDate, type });
         } else {
           await addDoc(collection(db, "events"), { title, startDate, endDate, type });
         }
+        // The live events listener repaints the calendar/upcoming lists —
+        // no manual reload needed.
         resetEventForm();
-        await loadData();
-        render();
+        showToast(wasEditing ? 'Event updated.' : 'Event added.', 'success');
       } catch (error) {
         msgEl.textContent = `Could not save event: ${error.code || error.message}`;
+        showToast('Could not save event.', 'error');
       }
     }
 
@@ -1000,10 +1183,9 @@
       try {
         await deleteDoc(doc(db, "events", eventId));
         if (editingEventId === eventId) resetEventForm();
-        await loadData();
-        render();
+        showToast('Event deleted.', 'success');
       } catch (error) {
-        alert(`Could not delete event: ${error.code || error.message}`);
+        showToast(`Could not delete event: ${error.code || error.message}`, 'error');
       }
     }
 

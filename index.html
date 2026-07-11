@@ -137,111 +137,134 @@
         </div>
       </section>
 
-      <!-- PROFILE VIEW -->
+      <!-- PROFILE VIEW — one unified page: account, plan, tasks, events, data.
+           Every registered user gets the full page; there's no separate admin role. -->
       <section id="profileView" class="tracker-section" style="display: none;">
-        <div class="card fade-in">
-          <h2 class="card-title">👤 Account</h2>
-          <span class="admin-tag" id="profileAdminTag" style="display:none;">🛠️ Admin Account</span>
-          <div class="profile-field-row">
-            <label>Email</label>
+        <div class="card fade-in profile-shell">
+          <div class="profile-shell-head">
+            <h2 class="card-title" style="margin-bottom:2px;">👤 My Profile</h2>
             <div class="profile-field-static" id="profileEmailDisplay"></div>
           </div>
-          <div class="profile-field-row">
-            <label for="profileDisplayName">Display Name</label>
-            <input id="profileDisplayName" class="login-input" type="text" placeholder="Your name">
+
+          <div class="profile-tabs" id="profileTabs" role="tablist">
+            <button class="profile-tab active" data-ptab="account" type="button">Account</button>
+            <button class="profile-tab" data-ptab="plan" type="button">Plan Duration</button>
+            <button class="profile-tab" data-ptab="tasks" type="button">Tasks</button>
+            <button class="profile-tab" data-ptab="events" type="button">Events</button>
+            <button class="profile-tab" data-ptab="data" type="button">Data &amp; Backup</button>
           </div>
-          <button class="btn btn-primary btn-sm" id="saveNameBtn">Save Name</button>
-          <p class="profile-msg" id="profileNameMsg"></p>
 
-          <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
-
-          <h3 class="card-title text-sm">Change Password</h3>
-          <div class="profile-field-row">
-            <label for="profileCurrentPassword">Current Password</label>
-            <input id="profileCurrentPassword" class="login-input" type="password" autocomplete="current-password">
-          </div>
-          <div class="profile-field-row">
-            <label for="profileNewPassword">New Password</label>
-            <input id="profileNewPassword" class="login-input" type="password" autocomplete="new-password" placeholder="Min 6 characters">
-          </div>
-          <button class="btn btn-primary btn-sm" id="savePasswordBtn">Update Password</button>
-          <p class="profile-msg" id="profilePasswordMsg"></p>
-        </div>
-
-        <div class="card fade-in" id="adminManageCard" style="display:none;">
-          <h2 class="card-title">⚙️ Manage Planner (Admin)</h2>
-          <p class="text-muted" style="font-size:0.85rem; margin-bottom:14px;">
-            Add, edit, or remove tasks and events here — changes apply to the shared plan everyone sees.
-            For CSV export and full completion stats, open the <a href="admin.html" target="_blank" rel="noopener">full Admin Dashboard</a>.
-          </p>
-
-          <h3 class="card-title text-sm">Plan Duration</h3>
-          <p class="text-muted" style="font-size:0.8rem; margin-bottom:8px;">
-            Weeks always run Sunday → Saturday. If you pick a start date that isn't a Sunday,
-            it's automatically rolled back to that week's Sunday when you save.
-          </p>
-          <div class="date-range-group">
-            <div>
-              <label class="mini-label" for="pfPlanStartDate">Starting Date</label>
-              <input id="pfPlanStartDate" class="login-input" type="date">
+          <!-- ACCOUNT -->
+          <div class="profile-panel" data-ppanel="account">
+            <div class="profile-field-row">
+              <label for="profileDisplayName">Display Name</label>
+              <input id="profileDisplayName" class="login-input" type="text" placeholder="Your name">
             </div>
-            <div>
-              <label class="mini-label" for="pfPlanEndDate">Ending Date</label>
-              <input id="pfPlanEndDate" class="login-input" type="date">
+            <button class="btn btn-primary btn-sm" id="saveNameBtn">Save Name</button>
+            <p class="profile-msg" id="profileNameMsg"></p>
+
+            <hr class="profile-hr">
+
+            <h3 class="card-title text-sm">Change Password</h3>
+            <div class="profile-field-row">
+              <label for="profileCurrentPassword">Current Password</label>
+              <input id="profileCurrentPassword" class="login-input" type="password" autocomplete="current-password">
             </div>
+            <div class="profile-field-row">
+              <label for="profileNewPassword">New Password</label>
+              <input id="profileNewPassword" class="login-input" type="password" autocomplete="new-password" placeholder="Min 6 characters">
+            </div>
+            <button class="btn btn-primary btn-sm" id="savePasswordBtn">Update Password</button>
+            <p class="profile-msg" id="profilePasswordMsg"></p>
           </div>
-          <button class="btn btn-primary btn-sm" id="savePlanDatesBtn">Save Duration</button>
-          <p class="profile-msg" id="pfPlanMsg"></p>
 
-          <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
-
-          <h3 class="card-title text-sm">Add Task</h3>
-          <div class="inline-form-grid">
-            <input id="pfTaskName" class="login-input" placeholder="Week name, e.g. Week 1">
-            <select id="pfTaskCategory" class="login-input">
-              <option>BAU</option>
-              <option>Agri-Career</option>
-              <option>Agri-Pedia</option>
-              <option>BCS</option>
-            </select>
-            <input id="pfTaskDays" class="login-input" type="number" min="1" placeholder="Days, e.g. 6">
-            <input id="pfTaskDesc" class="login-input" placeholder="Target / description">
-          </div>
-          <div class="form-actions">
-            <button class="btn btn-primary btn-sm" id="addTaskBtn">+ Add Task</button>
-            <button class="btn btn-secondary btn-sm" id="cancelTaskEditBtn" style="display:none;">Cancel Edit</button>
-          </div>
-          <p class="profile-msg" id="pfTaskMsg"></p>
-          <div id="pfTaskList" style="max-height:280px; overflow-y:auto; margin-top:10px; border:1px solid var(--border); border-radius:8px;"></div>
-
-          <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
-
-          <h3 class="card-title text-sm">Add Event</h3>
-          <div class="inline-form-grid">
-            <input id="pfEventTitle" class="login-input" placeholder="Event title" style="grid-column: 1 / -1;">
+          <!-- PLAN DURATION -->
+          <div class="profile-panel" data-ppanel="plan" style="display:none;">
+            <p class="text-muted text-sm mb">
+              Changes here apply to the shared plan everyone sees. Weeks always run
+              Sunday → Saturday — if you pick a start date that isn't a Sunday, it's
+              automatically rolled back to that week's Sunday when you save.
+            </p>
             <div class="date-range-group">
               <div>
-                <label class="mini-label" for="pfEventStartDate">Start Date</label>
-                <input id="pfEventStartDate" class="login-input" type="date">
+                <label class="mini-label" for="pfPlanStartDate">Starting Date</label>
+                <input id="pfPlanStartDate" class="login-input" type="date">
               </div>
               <div>
-                <label class="mini-label" for="pfEventEndDate">End Date (optional)</label>
-                <input id="pfEventEndDate" class="login-input" type="date">
+                <label class="mini-label" for="pfPlanEndDate">Ending Date</label>
+                <input id="pfPlanEndDate" class="login-input" type="date">
               </div>
             </div>
-            <select id="pfEventType" class="login-input">
-              <option>Exam</option>
-              <option>Deadline</option>
-              <option>Class</option>
-              <option>Other</option>
-            </select>
+            <button class="btn btn-primary btn-sm" id="savePlanDatesBtn">Save Duration</button>
+            <p class="profile-msg" id="pfPlanMsg"></p>
           </div>
-          <div class="form-actions">
-            <button class="btn btn-primary btn-sm" id="addEventBtn">+ Add Event</button>
-            <button class="btn btn-secondary btn-sm" id="cancelEventEditBtn" style="display:none;">Cancel Edit</button>
+
+          <!-- TASKS -->
+          <div class="profile-panel" data-ppanel="tasks" style="display:none;">
+            <p class="text-muted text-sm mb">Add, edit, or remove tasks — changes apply to the shared plan everyone sees.</p>
+            <div class="inline-form-grid">
+              <input id="pfTaskName" class="login-input" placeholder="Week name, e.g. Week 1">
+              <select id="pfTaskCategory" class="login-input">
+                <option>BAU</option>
+                <option>Agri-Career</option>
+                <option>Agri-Pedia</option>
+                <option>BCS</option>
+              </select>
+              <input id="pfTaskDays" class="login-input" type="number" min="1" placeholder="Days, e.g. 6">
+              <input id="pfTaskDesc" class="login-input" placeholder="Target / description">
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary btn-sm" id="addTaskBtn">+ Add Task</button>
+              <button class="btn btn-secondary btn-sm" id="cancelTaskEditBtn" style="display:none;">Cancel Edit</button>
+            </div>
+            <p class="profile-msg" id="pfTaskMsg"></p>
+            <div id="pfTaskList" class="inline-list-scroll"></div>
           </div>
-          <p class="profile-msg" id="pfEventMsg"></p>
-          <div id="pfEventList" style="max-height:220px; overflow-y:auto; margin-top:10px; border:1px solid var(--border); border-radius:8px;"></div>
+
+          <!-- EVENTS -->
+          <div class="profile-panel" data-ppanel="events" style="display:none;">
+            <p class="text-muted text-sm mb">Add, edit, or remove events — changes apply to the shared plan everyone sees.</p>
+            <div class="inline-form-grid">
+              <input id="pfEventTitle" class="login-input" placeholder="Event title" style="grid-column: 1 / -1;">
+              <div class="date-range-group">
+                <div>
+                  <label class="mini-label" for="pfEventStartDate">Start Date</label>
+                  <input id="pfEventStartDate" class="login-input" type="date">
+                </div>
+                <div>
+                  <label class="mini-label" for="pfEventEndDate">End Date (optional)</label>
+                  <input id="pfEventEndDate" class="login-input" type="date">
+                </div>
+              </div>
+              <select id="pfEventType" class="login-input">
+                <option>Exam</option>
+                <option>Deadline</option>
+                <option>Class</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary btn-sm" id="addEventBtn">+ Add Event</button>
+              <button class="btn btn-secondary btn-sm" id="cancelEventEditBtn" style="display:none;">Cancel Edit</button>
+            </div>
+            <p class="profile-msg" id="pfEventMsg"></p>
+            <div id="pfEventList" class="inline-list-scroll"></div>
+          </div>
+
+          <!-- DATA & BACKUP -->
+          <div class="profile-panel" data-ppanel="data" style="display:none;">
+            <p class="text-muted text-sm mb">Back up or reset the shared plan. Your own daily progress isn't affected by any of this.</p>
+            <div class="stat-mini-grid" id="dataStats"></div>
+            <div class="form-actions" style="margin-top:14px;">
+              <button class="btn btn-secondary btn-sm" id="exportJsonBtn">📥 Export JSON Backup</button>
+              <button class="btn btn-secondary btn-sm" id="exportCsvBtn">📊 Export Tasks CSV</button>
+            </div>
+            <hr class="profile-hr">
+            <h3 class="card-title text-sm" style="color:var(--terracotta);">Danger Zone</h3>
+            <p class="text-muted text-sm mb">Permanently deletes every task and event in the shared plan. Export a backup first — this cannot be undone.</p>
+            <button class="btn btn-danger btn-sm" id="resetAllBtn">🔄 Reset All Tasks &amp; Events</button>
+            <p class="profile-msg" id="pfDataMsg"></p>
+          </div>
         </div>
       </section>
 
@@ -332,6 +355,9 @@
     </div>
     <button class="dt-timer-tog" id="dtTimerTog" type="button" title="Study Timer">⏱</button>
   </div>
+
+  <!-- TOASTS — small popup success/error messages, replaces native alert() -->
+  <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
 
   <script type="module" src="js/script.js"></script>
 </body>
