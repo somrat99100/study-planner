@@ -26,6 +26,46 @@
 <body>
   <!-- LOGIN / SIGNUP GATE -->
   <div id="loginGate">
+    <svg class="login-bg-hourglass" viewBox="0 0 300 520" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id="hgTopBulb">
+          <path d="M93,93 L207,93 C207,160 172,198 152,258 L148,258 C128,198 93,160 93,93 Z"/>
+        </clipPath>
+        <clipPath id="hgBottomBulb">
+          <path d="M148,258 L152,258 C172,318 207,356 207,427 L93,427 C93,356 128,318 148,258 Z"/>
+        </clipPath>
+      </defs>
+
+      <!-- top wood cap -->
+      <rect class="hg-wood" x="50" y="25" width="200" height="55" rx="8"/>
+      <circle class="hg-pin" cx="68" cy="30" r="4"/>
+      <circle class="hg-pin" cx="98" cy="30" r="4"/>
+      <circle class="hg-pin" cx="202" cy="30" r="4"/>
+      <circle class="hg-pin" cx="232" cy="30" r="4"/>
+
+      <!-- support rods -->
+      <rect class="hg-rod" x="65" y="80" width="6" height="360"/>
+      <rect class="hg-rod" x="95" y="80" width="6" height="360"/>
+      <rect class="hg-rod" x="199" y="80" width="6" height="360"/>
+      <rect class="hg-rod" x="229" y="80" width="6" height="360"/>
+
+      <!-- bottom wood cap -->
+      <rect class="hg-wood" x="50" y="440" width="200" height="55" rx="8"/>
+      <circle class="hg-pin" cx="68" cy="490" r="4"/>
+      <circle class="hg-pin" cx="98" cy="490" r="4"/>
+      <circle class="hg-pin" cx="202" cy="490" r="4"/>
+      <circle class="hg-pin" cx="232" cy="490" r="4"/>
+
+      <!-- sand: draining top pile, clipped to the top bulb -->
+      <rect class="hg-sand hg-sand-top" x="93" width="114" clip-path="url(#hgTopBulb)"/>
+      <!-- sand: accumulating bottom pile, clipped to the bottom bulb -->
+      <rect class="hg-sand hg-sand-bottom" x="93" width="114" clip-path="url(#hgBottomBulb)"/>
+      <!-- falling stream at the neck -->
+      <line class="hg-stream" x1="150" y1="255" x2="150" y2="302"/>
+
+      <!-- glass outline, drawn last so it sits above the sand -->
+      <path class="hg-glass" d="M85,85 L215,85 C215,160 175,200 155,260 C175,320 215,360 215,435 L85,435 C85,360 125,320 145,260 C125,200 85,160 85,85 Z"/>
+    </svg>
     <div class="login-box">
       <h2>📚 Study Plan</h2>
       <p class="login-sub">Project: <span id="projectIdLabel"></span></p>

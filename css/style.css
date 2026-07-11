@@ -646,15 +646,96 @@
     #loginGate {
       position: fixed;
       inset: 0;
-      background: #1a1410;
+      background: radial-gradient(circle at 30% 20%, #3f5c39 0%, #24381f 38%, #1a1410 78%);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 9999;
       padding: 20px;
+      overflow: hidden;
+    }
+
+    /* Decorative animated hourglass, drawn behind the login card */
+    .login-bg-hourglass {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(48vw, 340px);
+      height: min(83vw, 590px);
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      opacity: 0.18;
+      pointer-events: none;
+    }
+
+    .hg-wood {
+      fill: #7a4a35;
+      stroke: #4a2c18;
+      stroke-width: 2;
+    }
+
+    .hg-pin {
+      fill: #2b2118;
+    }
+
+    .hg-rod {
+      fill: #262220;
+    }
+
+    .hg-glass {
+      fill: none;
+      stroke: var(--cream);
+      stroke-width: 3;
+      opacity: 0.65;
+    }
+
+    .hg-sand {
+      fill: #5b8fb0;
+    }
+
+    .hg-sand-top {
+      animation: hgTopDrain 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    }
+
+    .hg-sand-bottom {
+      animation: hgBottomFill 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    }
+
+    .hg-stream {
+      stroke: #5b8fb0;
+      stroke-width: 3;
+      stroke-linecap: round;
+      animation: hgStream 9s linear infinite;
+    }
+
+    @keyframes hgTopDrain {
+      0%   { y: 93;  height: 165; }
+      88%  { y: 258; height: 0; }
+      100% { y: 258; height: 0; }
+    }
+
+    @keyframes hgBottomFill {
+      0%   { y: 427; height: 0; }
+      88%  { y: 258; height: 169; }
+      100% { y: 258; height: 169; }
+    }
+
+    @keyframes hgStream {
+      0%   { opacity: 0.9; }
+      86%  { opacity: 0.9; }
+      92%  { opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hg-sand-top, .hg-sand-bottom, .hg-stream { animation: none; }
+      .hg-sand-top { y: 93; height: 165; }
+      .hg-sand-bottom { y: 258; height: 169; }
     }
 
     .login-box {
+      position: relative;
+      z-index: 1;
       background: var(--cream);
       padding: 32px;
       border-radius: 16px;
