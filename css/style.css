@@ -664,7 +664,7 @@
       height: min(83vw, 590px);
       transform: translate(-50%, -50%);
       z-index: 0;
-      opacity: 0.18;
+      opacity: 0.24;
       pointer-events: none;
     }
 
@@ -736,7 +736,9 @@
     .login-box {
       position: relative;
       z-index: 1;
-      background: var(--cream);
+      background: rgba(254, 253, 248, 0.82);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       padding: 32px;
       border-radius: 16px;
       width: 100%;
