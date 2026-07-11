@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://firestore.googleapis.com">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Admin dashboard for managing the study planner's tasks, events, and settings.">
+  <title>Admin Dashboard — Study Planner</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --cream:       #fefdf8;
+      --cream-95:    #f5f3f0;
+      --cream-90:    #eae6e1;
+      --moss:        #6b9b5e;
+      --moss-dark:   #4a6e44;
+      --moss-light:  #9bc87f;
+      --terracotta:  #d97e66;
+      --stone:       #8b8680;
+      --text-main:   #1a1410;
+      --text-mut:    #6b6360;
+      --border:      #d9cfc7;
+      --red:         #dc2626;
+      --shadow:      0 2px 8px rgba(0,0,0,0.08);
+      --shadow-lg:   0 8px 24px rgba(0,0,0,0.12);
+      
+      --sans: 'Work Sans', sans-serif;
+      --serif: 'Fraunces', serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: var(--sans);
+      background: var(--cream);
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    /* ─── LAYOUT ─── */
+    .admin-container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 1024px) {
+      .admin-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ─── SIDEBAR ─── */
+    .admin-sidebar {
+      background: linear-gradient(180deg, var(--moss) 0%, var(--moss-dark) 100%);
+      color: var(--cream);
+      padding: 32px 20px;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    @media (max-width: 1024px) {
+      .admin-sidebar {
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+
+    .admin-logo {
+      font-family: var(--serif);
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 32px;
+    }
+
+    .admin-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .admin-nav-item {
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--cream);
+      font-weight: 500;
+      text-align: left;
+    }
+
+    .admin-nav-item:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .admin-nav-item.active {
+      background: var(--cream);
+      color: var(--moss);
+      border-color: var(--cream);
+    }
+
+    /* ─── MAIN CONTENT ─── */
+    .admin-main {
+      padding: 32px;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+      .admin-main {
+        padding: 20px;
+      }
+    }
+
+    .page-header {
+      margin-bottom: 32px;
+    }
+
+    .page-title {
+      font-family: var(--serif);
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .page-desc {
+      color: var(--text-mut);
+      font-size: 0.95rem;
+    }
+
+    /* ─── SECTIONS ─── */
+    .admin-section {
+      display: none;
+    }
+
+    .admin-section.active {
+      display: block;
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    /* ─── FORM CARD ─── */
+    .form-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .form-title {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--moss);
+      box-shadow: 0 0 0 3px rgba(107, 155, 94, 0.1);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* ─── TABLES ─── */
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .admin-table thead {
+      background: var(--cream-95);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .admin-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-mut);
+    }
+
+    .admin-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--cream-90);
+    }
+
+    .admin-table tr:hover {
+      background: var(--cream-95);
+    }
+
+    /* ─── BADGES & TAGS ─── */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-primary {
+      background: rgba(107, 155, 94, 0.1);
+      color: var(--moss);
+    }
+
+    .badge-warning {
+      background: rgba(217, 126, 102, 0.1);
+      color: var(--terracotta);
+    }
+
+    .badge-success {
+      background: rgba(34, 197, 94, 0.1);
+      color: #22c55e;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--moss);
+      color: var(--cream);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-primary:hover {
+      background: var(--moss-dark);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--moss);
+      border: 1px solid var(--moss);
+    }
+
+    .btn-secondary:hover {
+      background: var(--moss);
+      color: var(--cream);
+    }
+
+    .btn-danger {
+      background: rgba(220, 38, 38, 0.1);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+
+    .btn-danger:hover {
+      background: var(--red);
+      color: var(--cream);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    /* ─── STATS ─── */
+    .stat-card {
+      background: linear-gradient(135deg, var(--moss-light) 0%, var(--moss) 100%);
+      color: var(--cream);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .stat-value {
+      font-family: var(--serif);
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.9;
+    }
+
+    /* ─── MODALS ─── */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-mut);
+    }
+
+    /* ─── ALERTS ─── */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .alert.show {
+      display: block;
+    }
+
+    .alert-success {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid #22c55e;
+      color: #16a34a;
+    }
+
+    .alert-error {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid var(--red);
+      color: #b91c1c;
+    }
+
+    /* ─── UTILITIES ─── */
+    .text-center { text-align: center; }
+    .text-muted { color: var(--text-mut); }
+    .mb { margin-bottom: 16px; }
+    .mt { margin-top: 16px; }
+    .flex { display: flex; gap: 12px; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: slideIn 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <!-- LOGIN GATE -->
+  <div id="loginGate" style="position:fixed;inset:0;background:#1a1410;display:flex;align-items:center;justify-content:center;z-index:9999;font-family:sans-serif;">
+    <div style="background:#fefdf8;padding:32px;border-radius:12px;width:100%;max-width:340px;">
+      <h2 style="margin:0 0 16px;color:#1a1410;">Admin Login</h2>
+      <p style="font-size:0.75rem;color:#8b8680;margin:-10px 0 14px;">Project: <span id="projectIdLabel"></span> · <span id="connStatus">checking connection…</span></p>
+      <input id="loginEmail" type="email" placeholder="Email" style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #d9cfc7;border-radius:6px;box-sizing:border-box;">
+      <input id="loginPassword" type="password" placeholder="Password" style="width:100%;padding:10px;margin-bottom:14px;border:1px solid #d9cfc7;border-radius:6px;box-sizing:border-box;">
+      <button id="loginBtn" style="width:100%;padding:10px;background:#6b9b5e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Log In</button>
+      <p id="loginError" style="color:#d97e66;margin-top:10px;font-size:0.9rem;"></p>
+    </div>
+  </div>
+
+  <div class="admin-container" id="adminContainer" style="display:none;">
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar">
+      <div class="admin-logo">⚙️ Admin</div>
+      <div id="loggedInAs" style="font-size:0.75rem;color:#8b8680;padding:0 0 12px;word-break:break-all;"></div>
+      <button id="logoutBtn" style="width:100%;padding:6px;margin-bottom:12px;background:transparent;border:1px solid #d9cfc7;border-radius:6px;cursor:pointer;font-size:0.8rem;">Log Out</button>
+      <nav class="admin-nav">
+        <button class="admin-nav-item active" onclick="switchSection('dashboard')">Dashboard</button>
+        <button class="admin-nav-item" onclick="switchSection('tasks')">Manage Tasks</button>
+        <button class="admin-nav-item" onclick="switchSection('events')">Academic Events</button>
+        <button class="admin-nav-item" onclick="switchSection('plan')">Plan Settings</button>
+        <button class="admin-nav-item" onclick="switchSection('analytics')">Analytics</button>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+      <!-- DASHBOARD SECTION -->
+      <section id="dashboard" class="admin-section active fade-in">
+        <div class="page-header">
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-desc">Overview of your study plan and progress</p>
+        </div>
+
+        <div class="section-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="statTotalTasks">0</div>
+            <div class="stat-label">Total Tasks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statCompletedTasks">0</div>
+            <div class="stat-label">Finished by ≥1 Student</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statActiveStudents">0</div>
+            <div class="stat-label">Active Students</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statUpcomingEvents">0</div>
+            <div class="stat-label">Upcoming Events</div>
+          </div>
+        </div>
+
+        <div class="form-card fade-in">
+          <div class="form-title">Quick Actions</div>
+          <p class="mb text-muted">Common tasks and settings</p>
+          <div class="flex" style="flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="switchSection('tasks')">Add New Task</button>
+            <button class="btn btn-primary" onclick="switchSection('events')">Add Event</button>
+            <button class="btn btn-secondary" onclick="exportData()">Export Data</button>
+            <button class="btn btn-danger" onclick="confirmReset()">Reset Plan</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TASKS SECTION -->
+      <section id="tasks" class="admin-section fade-in">
+        <div class="page-header">
+          <h1 class="page-title">Manage Tasks</h1>
+          <p class="page-desc">Add, edit, and track study tasks</p>
+        </div>
+
+        <div class="section-grid" style="grid-template-columns: 1fr;">
+          <div class="form-card">
+            <div class="form-title">Add New Task</div>
+            
+            <div class="alert" id="taskAlert"></div>
+
+            <div class="form-group">
+              <label class="form-label">Task Name</label>
+              <input type="text" class="form-input" id="taskName" placeholder="e.g., Chapter 3 Study">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select class="form-select" id="taskCategory">
+                <option>BAU</option>
+                <option>Agri-Career</option>
+                <option>Agri-Pedia</option>
+                <option>BCS</option>
+                <option value="__add_new__">+ Add new category…</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Target Days</label>
+              <input type="number" class="form-input" id="taskDays" placeholder="e.g., 6" min="1" max="100">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Target / Description</label>
+              <textarea class="form-textarea" id="taskDesc" placeholder="e.g., Agronomy Part-1,2V/D"></textarea>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" onclick="addTask()">Add Task</button>
+          </div>
+        </div>
+
+        <div class="form-card fade-in">
+          <div class="form-title">Current Tasks</div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Task Name</th>
+                  <th>Category</th>
+                  <th>Best Student Progress</th>
+                  <th>Students Started</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody">
+                <tr>
+                  <td colspan="6" style="text-align: center; color: var(--text-mut);">No tasks yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- EVENTS SECTION -->
+      <section id="events" class="admin-section fade-in">
+        <div class="page-header">
+          <h1 class="page-title">Academic Events</h1>
+          <p class="page-desc">Manage exams, deadlines, and important dates</p>
+        </div>
+
+        <div class="section-grid" style="grid-template-columns: 1fr;">
+          <div class="form-card">
+            <div class="form-title">Add New Event</div>
+            
+            <div class="alert" id="eventAlert"></div>
+
+            <div class="form-group">
+              <label class="form-label">Event Title</label>
+              <input type="text" class="form-input" id="eventTitle" placeholder="e.g., Midterm Exam">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-input" id="eventDate">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Event Type</label>
+              <select class="form-select" id="eventType">
+                <option>Exam</option>
+                <option>Assignment Due</option>
+                <option>Class</option>
+                <option>Deadline</option>
+                <option>Semester Event</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Description (optional)</label>
+              <textarea class="form-textarea" id="eventDesc" placeholder="Add details about this event..."></textarea>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" onclick="addEvent()">Add Event</button>
+          </div>
+        </div>
+
+        <div class="form-card fade-in">
+          <div class="form-title">Upcoming Events</div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Days Until</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTableBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-mut);">No events scheduled</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PLAN SETTINGS SECTION -->
+      <section id="plan" class="admin-section fade-in">
+        <div class="page-header">
+          <h1 class="page-title">Plan Settings</h1>
+          <p class="page-desc">Configure your study plan parameters</p>
+        </div>
+
+        <div class="section-grid" style="grid-template-columns: 1fr;">
+          <div class="form-card">
+            <div class="form-title">Plan Configuration</div>
+            
+            <div class="form-group">
+              <label class="form-label">Plan Name</label>
+              <input type="text" class="form-input" id="planName" placeholder="100-Day Study Plan" value="100-Day Study Plan">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Start Date</label>
+              <input type="date" class="form-input" id="planStartDate">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Total Days</label>
+              <input type="number" class="form-input" id="planDays" placeholder="100" min="1" value="100">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Weekly Target (hours)</label>
+              <input type="number" class="form-input" id="planWeeklyTarget" placeholder="20" min="1" value="20">
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" onclick="savePlanSettings()">Save Settings</button>
+          </div>
+
+          <div class="form-card fade-in">
+            <div class="form-title">Semester Information</div>
+            
+            <div class="form-group">
+              <label class="form-label">Semester Name</label>
+              <input type="text" class="form-input" id="semesterName" placeholder="Fall 2026">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Semester Start</label>
+              <input type="date" class="form-input" id="semesterStart">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Semester End</label>
+              <input type="date" class="form-input" id="semesterEnd">
+            </div>
+
+            <button class="btn btn-secondary" style="width: 100%;" onclick="saveSemesterSettings()">Update Semester</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS SECTION -->
+      <section id="analytics" class="admin-section fade-in">
+        <div class="page-header">
+          <h1 class="page-title">Analytics</h1>
+          <p class="page-desc">Insights and statistics about your progress</p>
+        </div>
+
+        <div class="section-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="analyticsDaysElapsed">0</div>
+            <div class="stat-label">Days Elapsed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="analyticsCompletionRate">0%</div>
+            <div class="stat-label">Completion Rate</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="analyticsTasksPerWeek">0</div>
+            <div class="stat-label">Tasks Per Week</div>
+          </div>
+        </div>
+
+        <div class="form-card fade-in">
+          <div class="form-title">Progress Summary</div>
+          <div id="analyticsSummary">
+            <p class="text-muted">Loading analytics...</p>
+          </div>
+        </div>
+
+        <div class="form-card fade-in">
+          <div class="form-title">Data Management</div>
+          <p class="mb text-muted">Export, backup, or reset your data</p>
+          <div class="flex" style="flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="exportData()">📥 Export as JSON</button>
+            <button class="btn btn-secondary" onclick="downloadCSV()">📊 Download CSV</button>
+            <button class="btn btn-danger" onclick="confirmReset()">🔄 Reset All Data</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- CONFIRMATION MODAL -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Confirm Action</h2>
+        <button class="modal-close" onclick="closeModal('confirmModal')">×</button>
+      </div>
+      <p id="confirmMessage" class="mb"></p>
+      <div class="flex" style="justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="executeReset()">Confirm Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, collectionGroup, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, setDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // ───────────────────────────
+    // FIREBASE CONFIG
+    // ⚠️ PASTE YOUR REAL CONFIG HERE — copy it from:
+    // Firebase Console → ⚙️ Project settings → Your apps → (</>) → SDK setup and config
+    // Make sure projectId here EXACTLY matches the project ID shown in your
+    // Firebase console URL (e.g. planner-a3863-ce3fc, not just planner-a3863).
+    // This MUST be identical to the config in index.html.
+    // ───────────────────────────
+    const firebaseConfig = {
+      apiKey:            "AIzaSyA0NiUGQ-YIWkARYfbHRacz9QdDVZ41wLM",
+      authDomain:        "planner-a3863-ce3fc.firebaseapp.com",
+      projectId:         "planner-a3863-ce3fc",
+      storageBucket:     "planner-a3863-ce3fc.firebasestorage.app",
+      messagingSenderId: "259248084380",
+      appId:             "1:259248084380:web:5286b52f7dbb588793a459"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // ⚠️ Only this exact email is granted admin access. Must match the
+    // isAdmin() check in firestore.rules and the ADMIN_EMAIL in index.html
+    // and bulk-import.html.
+    const ADMIN_EMAIL = "admin@example.com";
+
+    // Escapes untrusted text before it's inserted via innerHTML, so a task
+    // name/description containing HTML/script can never execute in the browser.
+    function escapeHTML(str) {
+      return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    let appState = {
+      tasks: [],
+      events: [],
+      plan: {
+        name: "100-Day Study Plan",
+        startDate: new Date(2026, 6, 11),
+        totalDays: 100,
+        weeklyTarget: 20
+      },
+      // taskId -> { maxCompleted, studentCount } across every student, built
+      // by loadProgressAggregate() from the users/*/progress collectionGroup.
+      progressByTask: {},
+      activeStudents: 0
+    };
+
+    async function loadProgressAggregate() {
+      appState.progressByTask = {};
+      const students = new Set();
+      try {
+        const snap = await getDocs(collectionGroup(db, 'progress'));
+        snap.docs.forEach(d => {
+          const taskId = d.id;
+          const ownerId = d.ref.parent.parent ? d.ref.parent.parent.id : null;
+          const completed = Number(d.data().completed) || 0;
+          if (ownerId) students.add(ownerId);
+          if (!appState.progressByTask[taskId]) {
+            appState.progressByTask[taskId] = { maxCompleted: 0, studentCount: 0 };
+          }
+          appState.progressByTask[taskId].maxCompleted = Math.max(appState.progressByTask[taskId].maxCompleted, completed);
+          appState.progressByTask[taskId].studentCount += 1;
+        });
+        appState.activeStudents = students.size;
+      } catch (error) {
+        // If this admin account can't yet read the progress collectionGroup,
+        // it usually means firestore.rules hasn't been redeployed with the
+        // isAdmin() read rule for users/{userId}/progress — dashboard still
+        // works, it just can't show real student completion counts.
+        console.error("Error loading progress aggregate:", error);
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user && user.isAnonymous) {
+        // Leftover anonymous session from an earlier version of this file — clear it.
+        await signOut(auth);
+        return; // signOut triggers onAuthStateChanged again with user = null
+      }
+
+      if (user && user.email === ADMIN_EMAIL) {
+        document.getElementById('loginGate').style.display = 'none';
+        document.getElementById('adminContainer').style.display = '';
+        document.getElementById('loggedInAs').textContent = '🛠️ Admin: ' + user.email;
+        await loadCategories();
+        await loadAllData();
+        updateDashboard();
+        renderTasks();
+        renderEvents();
+        return;
+      }
+
+      if (user && user.email !== ADMIN_EMAIL) {
+        // Signed in, but not the admin account — deny access and kick back to login.
+        const errEl = document.getElementById('loginError');
+        if (errEl) errEl.textContent = 'This account does not have admin access.';
+        await signOut(auth);
+        return; // signOut triggers onAuthStateChanged again with user = null
+      }
+
+      document.getElementById('loginGate').style.display = 'flex';
+      document.getElementById('adminContainer').style.display = 'none';
+    });
+
+    const DEFAULT_CATEGORIES = ['BAU', 'Agri-Career', 'Agri-Pedia', 'BCS'];
+
+    async function loadCategories() {
+      let categories = DEFAULT_CATEGORIES;
+      try {
+        const snap = await getDoc(doc(db, 'settings', 'categories'));
+        if (snap.exists() && Array.isArray(snap.data().list)) {
+          categories = [...new Set([...DEFAULT_CATEGORIES, ...snap.data().list])];
+        }
+      } catch (error) {
+        console.error('Could not load custom categories:', error);
+      }
+      const select = document.getElementById('taskCategory');
+      select.innerHTML = categories.map(c => `<option>${escapeHTML(c)}</option>`).join('')
+        + '<option value="__add_new__">+ Add new category…</option>';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('taskCategory').addEventListener('change', async (e) => {
+        if (e.target.value !== '__add_new__') return;
+        const name = prompt('New category name (e.g. "Field Visits"):');
+        e.target.value = DEFAULT_CATEGORIES[0]; // reset selection while we handle the add
+        const trimmed = (name || '').trim();
+        if (!trimmed) return;
+        try {
+          await setDoc(doc(db, 'settings', 'categories'), {
+            list: arrayUnion(trimmed)
+          }, { merge: true });
+          await loadCategories();
+          document.getElementById('taskCategory').value = trimmed;
+        } catch (error) {
+          alert(`Could not add category: ${error.code || error.message}`);
+        }
+      });
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('projectIdLabel').textContent = firebaseConfig.projectId;
+
+      // Quick connectivity probe: tries to reach Firestore. If the project or
+      // database doesn't actually exist, this fails immediately and tells us so.
+      getDocs(collection(db, "tasks")).then(() => {
+        document.getElementById('connStatus').textContent = 'Firestore reachable ✓';
+      }).catch((error) => {
+        document.getElementById('connStatus').textContent =
+          `Firestore error: ${error.code || error.message}`;
+      });
+
+      document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const errEl = document.getElementById('loginError');
+        errEl.textContent = '';
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+          errEl.textContent = `Login failed: ${error.code || error.message}`;
+          console.error(error);
+        }
+      });
+    });
+
+    async function loadAllData() {
+      try {
+        const tasksSnap = await getDocs(collection(db, "tasks"));
+        appState.tasks = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const eventsSnap = await getDocs(collection(db, "events"));
+        appState.events = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        await loadProgressAggregate();
+      } catch (error) {
+        console.error("Error loading data:", error);
+        showAlert('taskAlert', 'Error loading data', 'error');
+      }
+    }
+
+    window.switchSection = function(section) {
+      document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+      document.getElementById(section).classList.add('active');
+      
+      document.querySelectorAll('.admin-nav-item').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    window.addTask = async function() {
+      const name = document.getElementById('taskName').value.trim();
+      const category = document.getElementById('taskCategory').value;
+      const days = parseInt(document.getElementById('taskDays').value);
+      const desc = document.getElementById('taskDesc').value.trim();
+
+      if (!name || !days || days < 1 || !desc) {
+        showAlert('taskAlert', 'Please fill in task name, target days, and the target/description', 'error');
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "tasks"), {
+          name, category, days, desc, completed: 0, createdAt: new Date()
+        });
+        
+        document.getElementById('taskName').value = '';
+        document.getElementById('taskDays').value = '';
+        document.getElementById('taskDesc').value = '';
+        
+        showAlert('taskAlert', '✓ Task added successfully', 'success');
+        await loadAllData();
+        renderTasks();
+      } catch (error) {
+        console.error("Error adding task:", error);
+        showAlert('taskAlert', `Error adding task: ${error.code || ''} ${error.message || error}`, 'error');
+      }
+    }
+
+    window.addEvent = async function() {
+      const title = document.getElementById('eventTitle').value.trim();
+      const date = document.getElementById('eventDate').value;
+      const type = document.getElementById('eventType').value;
+      const desc = document.getElementById('eventDesc').value.trim();
+
+      if (!title || !date) {
+        showAlert('eventAlert', 'Please fill in all required fields', 'error');
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "events"), {
+          title, date, type, desc, createdAt: new Date()
+        });
+        
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('eventDate').value = '';
+        document.getElementById('eventDesc').value = '';
+        
+        showAlert('eventAlert', '✓ Event added successfully', 'success');
+        await loadAllData();
+        renderEvents();
+      } catch (error) {
+        console.error("Error adding event:", error);
+        showAlert('eventAlert', `Error adding event: ${error.code || ''} ${error.message || error}`, 'error');
+      }
+    }
+
+    function renderTasks() {
+      const tbody = document.getElementById('tasksTableBody');
+
+      if (appState.tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-mut);">No tasks yet</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = appState.tasks.map(task => {
+        const agg = appState.progressByTask[task.id] || { maxCompleted: 0, studentCount: 0 };
+        const days = Number(task.days) || 0;
+        const progress = days > 0 ? Math.round((agg.maxCompleted / days) * 100) : 0;
+        const status = progress >= 100 ? 'completed' : progress > 0 ? 'in-progress' : 'pending';
+
+        return `
+          <tr>
+            <td><strong>${escapeHTML(task.name)}</strong></td>
+            <td><span class="badge badge-primary">${escapeHTML(task.category)}</span></td>
+            <td>${agg.maxCompleted}/${days} (${progress}%) <span class="text-muted" style="font-size:0.8rem;">best</span></td>
+            <td>${agg.studentCount}</td>
+            <td><span class="badge badge-${status === 'completed' ? 'success' : status === 'in-progress' ? 'warning' : 'primary'}">${status === 'completed' ? 'Completed' : status === 'in-progress' ? 'In Progress' : 'Pending'}</span></td>
+            <td>
+              <button class="btn btn-sm btn-danger" onclick="deleteTask('${task.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderEvents() {
+      const tbody = document.getElementById('eventsTableBody');
+      const today = new Date();
+      
+      if (appState.events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-mut);">No events scheduled</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = appState.events
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .map(event => {
+          const eventDate = new Date(event.date);
+          const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+          
+          return `
+            <tr>
+              <td><strong>${escapeHTML(event.title)}</strong></td>
+              <td>${new Date(event.date).toLocaleDateString('en-GB')}</td>
+              <td><span class="badge badge-primary">${escapeHTML(event.type)}</span></td>
+              <td>${daysUntil > 0 ? daysUntil + ' days' : 'Today'}</td>
+              <td>
+                <button class="btn btn-sm btn-danger" onclick="deleteEvent('${event.id}')">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+    }
+
+    window.deleteTask = async function(id) {
+      if (!confirm('Delete this task?')) return;
+      try {
+        await deleteDoc(doc(db, "tasks", id));
+        await loadAllData();
+        renderTasks();
+      } catch (error) {
+        console.error("Error deleting task:", error);
+      }
+    }
+
+    window.deleteEvent = async function(id) {
+      if (!confirm('Delete this event?')) return;
+      try {
+        await deleteDoc(doc(db, "events", id));
+        await loadAllData();
+        renderEvents();
+      } catch (error) {
+        console.error("Error deleting event:", error);
+      }
+    }
+
+    function updateDashboard() {
+      const totalTasks = appState.tasks.length;
+      const completedTasks = appState.tasks.filter(t => {
+        const agg = appState.progressByTask[t.id];
+        return agg && (Number(t.days) || 0) > 0 && agg.maxCompleted >= Number(t.days);
+      }).length;
+      const today = new Date();
+      const upcomingEvents = appState.events.filter(e => {
+        const eventDate = new Date(e.date);
+        return eventDate >= today && eventDate <= new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      }).length;
+
+      document.getElementById('statTotalTasks').textContent = totalTasks;
+      document.getElementById('statCompletedTasks').textContent = completedTasks;
+      document.getElementById('statActiveStudents').textContent = appState.activeStudents;
+      document.getElementById('statUpcomingEvents').textContent = upcomingEvents;
+    }
+
+    window.savePlanSettings = function() {
+      appState.plan.name = document.getElementById('planName').value;
+      appState.plan.startDate = new Date(document.getElementById('planStartDate').value);
+      appState.plan.totalDays = parseInt(document.getElementById('planDays').value);
+      appState.plan.weeklyTarget = parseInt(document.getElementById('planWeeklyTarget').value);
+      
+      localStorage.setItem('planSettings', JSON.stringify(appState.plan));
+      alert('✓ Plan settings saved');
+    }
+
+    window.saveSemesterSettings = function() {
+      const semester = {
+        name: document.getElementById('semesterName').value,
+        start: document.getElementById('semesterStart').value,
+        end: document.getElementById('semesterEnd').value
+      };
+      localStorage.setItem('semesterSettings', JSON.stringify(semester));
+      alert('✓ Semester settings saved');
+    }
+
+    window.exportData = function() {
+      const data = {
+        tasks: appState.tasks,
+        events: appState.events,
+        plan: appState.plan,
+        exportDate: new Date().toISOString()
+      };
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `study-plan-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    window.downloadCSV = function() {
+      const csvField = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      let csv = 'Task,Category,Target Days,Best Student Progress,Students Started,Progress\n';
+      appState.tasks.forEach(task => {
+        const agg = appState.progressByTask[task.id] || { maxCompleted: 0, studentCount: 0 };
+        const days = Number(task.days) || 0;
+        const progress = days > 0 ? Math.round((agg.maxCompleted / days) * 100) : 0;
+        csv += [csvField(task.name), csvField(task.category), days, agg.maxCompleted, agg.studentCount, progress + '%'].join(',') + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `study-plan-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    window.confirmReset = function() {
+      document.getElementById('confirmMessage').textContent = 'This will delete all tasks and events. This action cannot be undone.';
+      document.getElementById('confirmModal').classList.add('active');
+    }
+
+    window.executeReset = async function() {
+      try {
+        for (const task of appState.tasks) {
+          await deleteDoc(doc(db, "tasks", task.id));
+        }
+        for (const event of appState.events) {
+          await deleteDoc(doc(db, "events", event.id));
+        }
+        appState.tasks = [];
+        appState.events = [];
+        closeModal('confirmModal');
+        updateDashboard();
+        renderTasks();
+        renderEvents();
+        alert('✓ All data reset successfully');
+      } catch (error) {
+        console.error("Error resetting data:", error);
+      }
+    }
+
+    window.closeModal = function(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    function showAlert(elementId, message, type) {
+      const alert = document.getElementById(elementId);
+      alert.textContent = message;
+      alert.className = `alert ${type === 'error' ? 'alert-error' : 'alert-success'} show`;
+      setTimeout(() => alert.classList.remove('show'), 4000);
+    }
+  </script>
+</body>
+</html>

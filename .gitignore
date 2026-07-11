@@ -1,0 +1,15 @@
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.firebase
+
+# Editor / OS
+.DS_Store
+.vscode/
+*.swp
+
+# Local env (if you ever add build tooling / API keys via env)
+.env
+.env.local

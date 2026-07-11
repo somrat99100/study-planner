@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://firestore.googleapis.com">
+  <meta name="description" content="Track your personal progress through the 6th semester study plan — private, per-student checkboxes on a shared task list.">
+  <meta name="theme-color" content="#6b9b5e">
+  <title>Study Planner — Agriculture Students</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Warm up connections to Firebase's domains as early as possible, so the
+       SDK download and first Firestore/Auth requests don't each pay a fresh
+       DNS + TLS handshake cost on top of the actual data transfer. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- LOGIN / SIGNUP GATE -->
+  <div id="loginGate">
+    <div class="login-box">
+      <h2>📚 Study Plan</h2>
+      <p class="login-sub">Project: <span id="projectIdLabel"></span></p>
+      <div class="login-tabs">
+        <button class="login-tab active" id="tabLogin">Log In</button>
+        <button class="login-tab" id="tabSignup">Sign Up</button>
+      </div>
+      <input id="loginEmail" class="login-input" type="email" placeholder="Email" autocomplete="email">
+      <input id="loginPassword" class="login-input" type="password" placeholder="Password" autocomplete="current-password">
+      <button id="loginBtn" class="btn btn-primary" style="width:100%;">Log In</button>
+      <p id="loginError" class="login-error"></p>
+    </div>
+  </div>
+
+  <!-- LOADING OVERLAY — shown between successful login and the first
+       render, so the screen never looks blank/frozen while data loads. -->
+  <div id="loadOverlay" style="display:none;">
+    <div class="load-spinner"></div>
+    <p>Loading your plan…</p>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-content">
+      <div class="logo">📚 Study Plan</div>
+      <div class="nav-links">
+        <button class="nav-btn active" data-view="tracker">Tracker</button>
+        <button class="nav-btn" data-view="dailytracker">Daily Tracker</button>
+        <button class="nav-btn" data-view="calendar">Calendar</button>
+        <button class="nav-btn" data-view="reports">Reports</button>
+        <button class="nav-btn" data-view="profile">My Profile</button>
+        <button class="nav-btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <div class="container" id="appContent" style="display:none;">
+    <div class="main-wrapper">
+      <!-- TRACKER VIEW -->
+      <section id="trackerView" class="tracker-section">
+        <div class="panel-card fade-in">
+          <div class="panel-header">📅 Timeline Progress</div>
+          <div class="panel-body">
+            <div class="panel-row">
+              <div class="panel-row-label">Days Completed</div>
+              <div class="panel-row-value" id="daysPassed" style="background:var(--cream-90); color:var(--text-main);">0</div>
+            </div>
+            <div class="panel-row">
+              <div class="panel-row-label">Days Remaining</div>
+              <div class="panel-row-value" id="daysLeft">100</div>
+            </div>
+            <div class="panel-row overall">
+              <div class="panel-row-label">Overall Progress</div>
+              <div class="panel-row-value" id="overallProgress">0%</div>
+            </div>
+            <div class="panel-starts">Starts: <span id="startDateLabel"></span></div>
+            <div class="panel-starts" style="font-size:1.1rem; padding-top:0;">Ends: <span id="endDateLabel"></span></div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <div class="week-selector">
+            <div class="week-select-wrap">
+              <select class="week-select" id="weekSelector"></select>
+            </div>
+          </div>
+          <div class="week-heading-row">
+            <span class="week-heading" id="weekBigHeading">Week 1</span>
+            <span class="week-heading-sub" id="weekHeadingSub"></span>
+          </div>
+          <div class="week-task-list" id="taskGrid">
+            <div class="empty-state">
+              <div class="empty-state-icon">📋</div>
+              <p>No tasks yet. Add tasks in the Admin panel.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALENDAR VIEW -->
+      <section id="calendarView" class="tracker-section" style="display: none;">
+        <div class="card fade-in">
+          <h2 class="card-title">Academic Calendar</h2>
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h3 style="font-family: var(--serif); font-size: 1.1rem; margin-bottom: 16px;" id="calendarMonth">July 2026</h3>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <div class="calendar-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--moss);"></div>
+              <span>Today</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--terracotta-light);"></div>
+              <span>Exam Date</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <h2 class="card-title">Upcoming Events</h2>
+          <div class="upcoming-events" id="upcomingEvents">
+            <div class="text-muted text-center">No events scheduled</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PROFILE VIEW -->
+      <section id="profileView" class="tracker-section" style="display: none;">
+        <div class="card fade-in">
+          <h2 class="card-title">👤 Account</h2>
+          <span class="admin-tag" id="profileAdminTag" style="display:none;">🛠️ Admin Account</span>
+          <div class="profile-field-row">
+            <label>Email</label>
+            <div class="profile-field-static" id="profileEmailDisplay"></div>
+          </div>
+          <div class="profile-field-row">
+            <label for="profileDisplayName">Display Name</label>
+            <input id="profileDisplayName" class="login-input" type="text" placeholder="Your name">
+          </div>
+          <button class="btn btn-primary btn-sm" id="saveNameBtn">Save Name</button>
+          <p class="profile-msg" id="profileNameMsg"></p>
+
+          <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
+
+          <h3 class="card-title text-sm">Change Password</h3>
+          <div class="profile-field-row">
+            <label for="profileCurrentPassword">Current Password</label>
+            <input id="profileCurrentPassword" class="login-input" type="password" autocomplete="current-password">
+          </div>
+          <div class="profile-field-row">
+            <label for="profileNewPassword">New Password</label>
+            <input id="profileNewPassword" class="login-input" type="password" autocomplete="new-password" placeholder="Min 6 characters">
+          </div>
+          <button class="btn btn-primary btn-sm" id="savePasswordBtn">Update Password</button>
+          <p class="profile-msg" id="profilePasswordMsg"></p>
+        </div>
+
+        <div class="card fade-in" id="adminManageCard" style="display:none;">
+          <h2 class="card-title">⚙️ Manage Planner (Admin)</h2>
+          <p class="text-muted" style="font-size:0.85rem; margin-bottom:14px;">
+            Add, edit, or remove tasks and events here — changes apply to the shared plan everyone sees.
+            For CSV export and full completion stats, open the <a href="admin.html" target="_blank" rel="noopener">full Admin Dashboard</a>.
+          </p>
+
+          <h3 class="card-title text-sm">Plan Duration</h3>
+          <p class="text-muted" style="font-size:0.8rem; margin-bottom:8px;">
+            Weeks always run Sunday → Saturday. If you pick a start date that isn't a Sunday,
+            it's automatically rolled back to that week's Sunday when you save.
+          </p>
+          <div class="date-range-group">
+            <div>
+              <label class="mini-label" for="pfPlanStartDate">Starting Date</label>
+              <input id="pfPlanStartDate" class="login-input" type="date">
+            </div>
+            <div>
+              <label class="mini-label" for="pfPlanEndDate">Ending Date</label>
+              <input id="pfPlanEndDate" class="login-input" type="date">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="savePlanDatesBtn">Save Duration</button>
+          <p class="profile-msg" id="pfPlanMsg"></p>
+
+          <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
+
+          <h3 class="card-title text-sm">Add Task</h3>
+          <div class="inline-form-grid">
+            <input id="pfTaskName" class="login-input" placeholder="Week name, e.g. Week 1">
+            <select id="pfTaskCategory" class="login-input">
+              <option>BAU</option>
+              <option>Agri-Career</option>
+              <option>Agri-Pedia</option>
+              <option>BCS</option>
+            </select>
+            <input id="pfTaskDays" class="login-input" type="number" min="1" placeholder="Days, e.g. 6">
+            <input id="pfTaskDesc" class="login-input" placeholder="Target / description">
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary btn-sm" id="addTaskBtn">+ Add Task</button>
+            <button class="btn btn-secondary btn-sm" id="cancelTaskEditBtn" style="display:none;">Cancel Edit</button>
+          </div>
+          <p class="profile-msg" id="pfTaskMsg"></p>
+          <div id="pfTaskList" style="max-height:280px; overflow-y:auto; margin-top:10px; border:1px solid var(--border); border-radius:8px;"></div>
+
+          <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
+
+          <h3 class="card-title text-sm">Add Event</h3>
+          <div class="inline-form-grid">
+            <input id="pfEventTitle" class="login-input" placeholder="Event title" style="grid-column: 1 / -1;">
+            <div class="date-range-group">
+              <div>
+                <label class="mini-label" for="pfEventStartDate">Start Date</label>
+                <input id="pfEventStartDate" class="login-input" type="date">
+              </div>
+              <div>
+                <label class="mini-label" for="pfEventEndDate">End Date (optional)</label>
+                <input id="pfEventEndDate" class="login-input" type="date">
+              </div>
+            </div>
+            <select id="pfEventType" class="login-input">
+              <option>Exam</option>
+              <option>Deadline</option>
+              <option>Class</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary btn-sm" id="addEventBtn">+ Add Event</button>
+            <button class="btn btn-secondary btn-sm" id="cancelEventEditBtn" style="display:none;">Cancel Edit</button>
+          </div>
+          <p class="profile-msg" id="pfEventMsg"></p>
+          <div id="pfEventList" style="max-height:220px; overflow-y:auto; margin-top:10px; border:1px solid var(--border); border-radius:8px;"></div>
+        </div>
+      </section>
+
+      <!-- REPORTS VIEW (Category / Weekly Progress) -->
+      <section id="reportsView" class="tracker-section" style="display: none;">
+        <div class="panel-card fade-in">
+          <div class="panel-header">📊 Category Progress</div>
+          <div class="panel-body" id="categoryProgress"></div>
+        </div>
+
+        <div class="panel-card fade-in">
+          <div class="panel-header">📅 Weekly Progress Summary</div>
+          <div class="panel-body weekly-summary-grid" id="weeklySummary"></div>
+        </div>
+      </section>
+
+      <!-- DAILY TRACKER VIEW (personal, self-service categories + study timer) -->
+      <section id="dailyTrackerView" class="tracker-section" style="display: none;">
+        <!-- Setup screen: shown only until the student defines their categories -->
+        <div class="card fade-in" id="dtSetupCard">
+          <h2 class="card-title">🗓️ Set Up Your Daily Tracker</h2>
+          <p class="text-muted text-sm mb" id="dtSetupIntro">Add your own study categories with a target number of days each, then start checking off days as you study. This tracker is private to your account.</p>
+          <div id="dtCatRows"></div>
+          <button class="btn btn-secondary btn-sm" id="dtAddCatBtn" type="button">+ Add Category</button>
+          <div class="dt-cat-count" id="dtCatCount">0 / 10 categories</div>
+          <button class="btn btn-primary" id="dtGenerateBtn" type="button">Generate Tracker</button>
+          <p class="profile-msg" id="dtSetupMsg"></p>
+        </div>
+
+        <!-- Tracker screen: shown once categories exist -->
+        <div class="dt-wrap" id="dtTrackerScreen" style="display:none;">
+          <div class="card fade-in" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h2 class="card-title" style="margin-bottom:2px;" id="dtTitle">My Daily Tracker</h2>
+              <div class="text-muted text-sm" id="dtStarted"></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="dtEditSetupBtn" type="button">+ Add / Edit Categories</button>
+          </div>
+
+          <div id="dtCardsWrap" class="dt-wrap"></div>
+
+          <div class="card fade-in" id="dtArchiveSection" style="display:none;">
+            <div class="dt-archive-toggle" id="dtArchiveToggle">
+              <span>📦 Archived Categories</span>
+              <span id="dtArchiveBadge" class="dt-pct-chip">0</span>
+            </div>
+            <div class="dt-archive-list" id="dtArchiveList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIN VIEW -->
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="stat-card fade-in">
+          <div class="stat-value" id="completionStat">0</div>
+          <div class="stat-label" id="completionStatLabel">Tasks Complete</div>
+        </div>
+
+        <div class="card fade-in today-focus-card" id="todaysFocusCard">
+          <h2 class="card-title text-sm focus-title">🎯 Today's Focus</h2>
+          <div id="todaysFocusMeta" style="font-size: 0.8rem; color: var(--text-mut); margin-bottom: 10px;"></div>
+          <div id="todaysFocus" class="category-list" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">
+            Complete what you can today. Every task counts toward your momentum. Start small, build consistency.
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <h2 class="card-title text-sm">Upcoming in Next 7 Days</h2>
+          <div id="nextWeekEvents" class="upcoming-events">
+            <div class="text-muted text-sm">No events scheduled</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- DAILY TRACKER — floating study timer (only shown once tracker data exists) -->
+  <div class="dt-timer-fab" id="dtTimerFab" style="display:none;">
+    <div class="dt-timer-panel" id="dtTimerPanel">
+      <div class="dt-timer-digits" id="dtTimerDigits">00:00:00</div>
+      <div class="dt-timer-sub">Current session</div>
+      <select class="dt-timer-cat" id="dtTimerCatSel"><option value="">— No category —</option></select>
+      <div class="dt-timer-btns">
+        <button class="btn btn-primary btn-sm" id="dtTimerStartBtn" type="button">▶ Start</button>
+        <button class="btn btn-secondary btn-sm" id="dtTimerResetBtn" type="button">↺ Reset</button>
+      </div>
+    </div>
+    <button class="dt-timer-tog" id="dtTimerTog" type="button" title="Study Timer">⏱</button>
+  </div>
+
+  <script type="module" src="js/script.js"></script>
+</body>
+</html>
