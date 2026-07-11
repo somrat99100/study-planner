@@ -41,10 +41,13 @@
   </div>
 
   <!-- LOADING OVERLAY — shown between successful login and the first
-       render, so the screen never looks blank/frozen while data loads. -->
+       render, so the screen never looks blank/frozen while data loads.
+       If loading fails or times out, switches to an error message with
+       a retry button instead of spinning forever with no feedback. -->
   <div id="loadOverlay" style="display:none;">
-    <div class="load-spinner"></div>
-    <p>Loading your plan…</p>
+    <div class="load-spinner" id="loadSpinner"></div>
+    <p id="loadOverlayText">Loading your plan…</p>
+    <button class="btn btn-primary btn-sm" id="loadRetryBtn" style="display:none;">Retry</button>
   </div>
 
   <!-- HEADER -->

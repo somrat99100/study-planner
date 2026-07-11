@@ -6,7 +6,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'admin@example.com';
+      return isSignedIn() && request.auth.token.email == 'iubatagriculture@gmail.com';
     }
     // Task templates (name/category/days/desc). Readable by anyone so the
     // public tracker can render the plan, but only the admin account can

@@ -31,7 +31,7 @@
 
     // ⚠️ Must exactly match ADMIN_EMAIL in admin.html / bulk-import.html
     // and the isAdmin() check in firestore.rules.
-    const ADMIN_EMAIL = "admin@example.com";
+    const ADMIN_EMAIL = "iubatagriculture@gmail.com";
 
     // Fixed display order for categories within a week (used for sorting
     // and for finding the "next" incomplete task in Today's Focus).
@@ -51,6 +51,24 @@
     function toISODate(d) {
       const dt = new Date(d);
       return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+    }
+
+    // Loading-overlay helpers: show the spinner, hide everything, or swap
+    // to an error message + retry button so a stuck load is never silent.
+    function showLoadOverlay() {
+      document.getElementById('loadSpinner').style.display = '';
+      document.getElementById('loadOverlayText').textContent = 'Loading your plan…';
+      document.getElementById('loadRetryBtn').style.display = 'none';
+      document.getElementById('loadOverlay').style.display = 'flex';
+    }
+    function hideLoadOverlay() {
+      document.getElementById('loadOverlay').style.display = 'none';
+    }
+    function showLoadOverlayError(message) {
+      document.getElementById('loadSpinner').style.display = 'none';
+      document.getElementById('loadOverlayText').textContent = message;
+      document.getElementById('loadRetryBtn').style.display = '';
+      document.getElementById('loadOverlay').style.display = 'flex';
     }
 
     // Pulls the week number out of a task name like "Week 3" → 3. Falls
@@ -94,30 +112,46 @@
 
           document.getElementById('loginGate').style.display = 'none';
           document.getElementById('appContent').style.display = '';
-          document.getElementById('loadOverlay').style.display = 'flex';
+          showLoadOverlay();
 
           document.getElementById('profileEmailDisplay').textContent = user.email;
           document.getElementById('profileAdminTag').style.display = appState.isAdmin ? '' : 'none';
           document.getElementById('adminManageCard').style.display = appState.isAdmin ? '' : 'none';
           document.getElementById('profileDisplayName').value = user.displayName || '';
 
-          await loadData();
+          try {
+            // Guard against a Firestore request that never resolves — e.g.
+            // the security rules were saved to the repo but never actually
+            // deployed to Firebase, or a network/ad-blocker/CSP issue is
+            // silently swallowing the request. Bail out after 12s with a
+            // clear error instead of spinning forever.
+            await Promise.race([
+              loadData(),
+              new Promise((_, reject) => setTimeout(
+                () => reject(new Error('This is taking too long — check your internet connection, and make sure the Firestore rules have actually been deployed (not just saved in the repo).')),
+                12000
+              ))
+            ]);
 
-          // Default the tracker to the week of the next incomplete task,
-          // so returning students land where they left off instead of
-          // always seeing Week 1.
-          const ordered = [...appState.plan.categories].sort((a, b) => weekNumOf(a.name) - weekNumOf(b.name));
-          const nextUp = ordered.find(cat => (cat.completed || 0) < 7);
-          appState.currentWeek = nextUp ? weekNumOf(nextUp.name) : 1;
+            // Default the tracker to the week of the next incomplete task,
+            // so returning students land where they left off instead of
+            // always seeing Week 1.
+            const ordered = [...appState.plan.categories].sort((a, b) => weekNumOf(a.name) - weekNumOf(b.name));
+            const nextUp = ordered.find(cat => (cat.completed || 0) < 7);
+            appState.currentWeek = nextUp ? weekNumOf(nextUp.name) : 1;
 
-          render();
-          dtInit(user.uid);
-          document.getElementById('loadOverlay').style.display = 'none';
+            render();
+            dtInit(user.uid);
+            hideLoadOverlay();
+          } catch (error) {
+            console.error('Error during post-login load:', error);
+            showLoadOverlayError(error.message || 'Something went wrong loading your plan.');
+          }
         } else {
           appState.user = null;
           appState.isAdmin = false;
           appState.progress = {};
-          document.getElementById('loadOverlay').style.display = 'none';
+          hideLoadOverlay();
           document.getElementById('loginGate').style.display = 'flex';
           document.getElementById('appContent').style.display = 'none';
           dtReset();
@@ -187,6 +221,8 @@
     }
 
     function setupEventListeners() {
+      document.getElementById('loadRetryBtn').addEventListener('click', () => location.reload());
+
       // Navigation
       document.querySelectorAll('[data-view]').forEach(btn => {
         btn.addEventListener('click', () => {
