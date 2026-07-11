@@ -77,6 +77,7 @@
       <input id="loginPassword" class="login-input" type="password" placeholder="Password" autocomplete="current-password">
       <button id="loginBtn" class="btn btn-primary" style="width:100%;">Log In</button>
       <p id="loginError" class="login-error"></p>
+      <button id="guestViewBtn" class="login-guest-link" type="button">👀 Just want to look around? View without an account</button>
     </div>
   </div>
 
@@ -107,6 +108,10 @@
 
   <!-- MAIN CONTENT -->
   <div class="container" id="appContent" style="display:none;">
+    <div id="guestBanner" class="guest-banner" style="display:none;">
+      <span>👀 You're viewing as a guest — everything here is read-only.</span>
+      <button id="guestSignUpBtn" class="btn btn-primary btn-sm" type="button">Sign Up to Save Progress</button>
+    </div>
     <div class="main-wrapper">
       <!-- TRACKER VIEW -->
       <section id="trackerView" class="tracker-section">

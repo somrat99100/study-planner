@@ -104,6 +104,7 @@
       events: [],
       currentWeek: 1,
       user: null,
+      guestMode: false,
       progress: {} // { [taskId]: completedCount } for the signed-in user
     };
 
@@ -119,6 +120,10 @@
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           appState.user = user;
+          appState.guestMode = false;
+          document.body.classList.remove('guest-mode');
+          document.getElementById('guestBanner').style.display = 'none';
+          document.getElementById('logoutBtn').textContent = 'Logout';
 
           document.getElementById('loginGate').style.display = 'none';
           document.getElementById('appContent').style.display = '';
@@ -214,7 +219,75 @@
         }
       });
 
-      document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (appState.guestMode) {
+          exitGuestMode();
+        } else {
+          signOut(auth);
+        }
+      });
+
+      document.getElementById('guestViewBtn').addEventListener('click', enterGuestMode);
+      document.getElementById('guestSignUpBtn').addEventListener('click', () => {
+        exitGuestMode();
+        tabSignup.click();
+      });
+    }
+
+    // ───────────────────────────
+    // GUEST (READ-ONLY) MODE — lets a visitor browse the plan, calendar,
+    // and reports without an account. Firestore rules already allow public
+    // reads on tasks/events/settings, so this is mostly a UI concern: skip
+    // Firebase Auth entirely, hide every edit surface (My Profile, Daily
+    // Tracker — both require a signed-in uid to persist anything), and
+    // relabel the checkboxes/logout button so it's obvious how to leave.
+    // ───────────────────────────
+    async function enterGuestMode() {
+      appState.guestMode = true;
+      appState.user = null;
+      document.body.classList.add('guest-mode');
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('appContent').style.display = '';
+      document.getElementById('guestBanner').style.display = 'flex';
+      document.getElementById('logoutBtn').textContent = 'Sign Up / Log In';
+      showLoadOverlay();
+
+      try {
+        await Promise.race([
+          loadData(),
+          new Promise((_, reject) => setTimeout(
+            () => reject(new Error('This is taking too long — check your internet connection.')),
+            12000
+          ))
+        ]);
+
+        const ordered = [...appState.plan.categories].sort((a, b) => weekNumOf(a.name) - weekNumOf(b.name));
+        const nextUp = ordered.find(cat => (cat.completed || 0) < 7);
+        appState.currentWeek = nextUp ? weekNumOf(nextUp.name) : 1;
+
+        render();
+        hideLoadOverlay();
+      } catch (error) {
+        console.error('Error during guest-mode load:', error);
+        showLoadOverlayError(error.message || 'Something went wrong loading the plan.');
+      }
+    }
+
+    function exitGuestMode() {
+      appState.guestMode = false;
+      appState.progress = {};
+      document.body.classList.remove('guest-mode');
+      teardownListeners();
+      hideLoadOverlay();
+      document.getElementById('guestBanner').style.display = 'none';
+      document.getElementById('logoutBtn').textContent = 'Logout';
+      document.getElementById('loginGate').style.display = 'flex';
+      document.getElementById('appContent').style.display = 'none';
+      // Reset the view back to Tracker so a subsequent real login doesn't
+      // land on whatever section the guest happened to be browsing.
+      document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-view="tracker"]').classList.add('active');
+      switchView('tracker');
     }
 
     function initApp() {
@@ -656,6 +729,10 @@
     // The checkbox flips instantly in the UI, Firestore write happens in background
     // When all 7 days are complete, next category becomes active
     window.toggleDay = async function(catId, dayIndex, el) {
+      if (appState.guestMode) {
+        showToast('Sign up to save your progress — this view is read-only.', 'error');
+        return;
+      }
       if (!appState.user) return;
       const cat = appState.plan.categories.find(c => c.id === catId);
       if (!cat) return;

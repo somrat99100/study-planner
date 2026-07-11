@@ -797,6 +797,65 @@
       min-height: 1em;
     }
 
+    .login-guest-link {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      background: none;
+      border: none;
+      color: var(--text-mut);
+      font-size: 0.8rem;
+      text-decoration: underline;
+      cursor: pointer;
+      text-align: center;
+      font-family: var(--sans);
+    }
+
+    .login-guest-link:hover {
+      color: var(--moss-dark);
+    }
+
+    /* ─── GUEST MODE ─── */
+    .guest-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: var(--terracotta-light);
+      color: var(--text-main);
+      border: 1px solid var(--terracotta);
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin: 16px 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    /* Edit-only surfaces are hidden entirely while browsing as a guest —
+       "My Profile" (tasks/events/plan/account edits) and "Daily Tracker"
+       (private, requires an account to persist). Reading tasks/events is
+       still allowed by the Firestore rules, so the tracker/calendar/reports
+       views keep working normally. */
+    body.guest-mode [data-view="profile"],
+    body.guest-mode [data-view="dailytracker"] {
+      display: none;
+    }
+
+    body.guest-mode #logoutBtn {
+      background: var(--moss);
+      color: var(--cream);
+      border-color: var(--moss);
+    }
+
+    body.guest-mode .day-check {
+      cursor: not-allowed;
+    }
+
+    body.guest-mode .day-check:hover {
+      opacity: 0.85;
+    }
+
     /* ─── WEEKLY PROGRESS SUMMARY ─── */
 
     /* ─── DASHBOARD PANELS (Timeline / Category / Weekly Summary) ─── */
