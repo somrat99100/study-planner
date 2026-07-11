@@ -660,11 +660,11 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: min(48vw, 340px);
-      height: min(83vw, 590px);
+      width: min(58vw, 420px);
+      height: min(100vw, 728px);
       transform: translate(-50%, -50%);
       z-index: 0;
-      opacity: 0.24;
+      opacity: 0.38;
       pointer-events: none;
     }
 
@@ -736,9 +736,9 @@
     .login-box {
       position: relative;
       z-index: 1;
-      background: rgba(254, 253, 248, 0.82);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      background: rgba(254, 253, 248, 0.58);
+      backdrop-filter: blur(1.5px);
+      -webkit-backdrop-filter: blur(1.5px);
       padding: 32px;
       border-radius: 16px;
       width: 100%;
@@ -777,7 +777,7 @@
       flex: 1;
       padding: 8px;
       border: 1px solid var(--border);
-      background: transparent;
+      background: rgba(255, 255, 255, 0.7);
       border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
