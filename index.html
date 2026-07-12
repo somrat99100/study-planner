@@ -161,7 +161,12 @@
           <div class="cal-nav">
             <button class="btn btn-secondary btn-sm" id="calPrevBtn" type="button" aria-label="Previous month">‹ Prev</button>
             <div class="cal-nav-center">
-              <h3 style="font-family: var(--serif); font-size: 1.1rem;" id="calendarMonth">July 2026</h3>
+              <div class="cal-month-picker-wrap">
+                <button class="cal-month-label" id="calMonthLabelBtn" type="button" tabindex="-1">
+                  <span id="calendarMonth">July 2026</span> ▾
+                </button>
+                <input type="month" id="calMonthPicker" class="cal-month-picker" aria-label="Jump to a specific month">
+              </div>
               <button class="cal-today-link" id="calTodayBtn" type="button">Today</button>
             </div>
             <button class="btn btn-secondary btn-sm" id="calNextBtn" type="button" aria-label="Next month">Next ›</button>

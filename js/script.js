@@ -344,6 +344,22 @@
         calendarViewDate = new Date();
         renderCalendar();
       });
+      document.getElementById('calMonthPicker').addEventListener('change', (ev) => {
+        const [y, m] = ev.target.value.split('-').map(Number);
+        if (!y || !m) return;
+        calendarViewDate = new Date(y, m - 1, 1);
+        renderCalendar();
+      });
+      // The input already sits invisibly on top of the label and catches
+      // the click directly in most browsers. showPicker() is a belt-and-
+      // braces nudge for browsers/situations where that click doesn't
+      // auto-open the native picker — harmless no-op where unsupported.
+      document.getElementById('calMonthLabelBtn').addEventListener('click', () => {
+        const picker = document.getElementById('calMonthPicker');
+        if (picker && typeof picker.showPicker === 'function') {
+          try { picker.showPicker(); } catch (e) { /* ignore — overlay click already handles it */ }
+        }
+      });
 
       // Profile sub-tabs (Account / Plan Duration / Tasks / Events / Data & Backup) —
       // one unified page instead of separate cards.
@@ -1312,6 +1328,11 @@
       const month = calendarViewDate.getMonth();
 
       monthLabel.textContent = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      // Keep the invisible <input type="month"> in sync so it always opens
+      // pre-set to the month currently on screen.
+      const picker = document.getElementById('calMonthPicker');
+      if (picker) picker.value = `${year}-${String(month + 1).padStart(2, '0')}`;
 
       grid.innerHTML = '';
 
