@@ -969,6 +969,70 @@
       gap: 10px 16px;
     }
 
+    /* ─── EVERYDAY COMPLETION SUMMARY (Reports) ─── */
+    .daily-log-scroll {
+      max-height: 440px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .daily-log-day {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .daily-log-date {
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+    }
+
+    .daily-log-tag {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      background: var(--moss);
+      color: var(--cream);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-weight: 700;
+      font-family: var(--sans);
+    }
+
+    .daily-log-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .daily-log-chip {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: var(--cream-95);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--chip-color, var(--moss));
+      color: var(--text-main);
+    }
+
+    .daily-log-chip-event {
+      border-left: 4px solid var(--terracotta);
+    }
+
+    .daily-log-empty {
+      text-align: center;
+      color: var(--text-mut);
+      padding: 20px 0;
+    }
+
     .panel-card {
       background: var(--cream);
       border: 1px solid var(--border);

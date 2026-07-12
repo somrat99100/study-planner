@@ -541,17 +541,21 @@
       return { week, day };
     }
 
-    function dayLabelFor(weekNum, dayIndex) {
+    function dateForWeekDay(weekNum, dayIndex) {
       const start = new Date(appState.plan.startDate);
       start.setHours(0, 0, 0, 0);
-      const date = new Date(start.getTime() + ((weekNum - 1) * 7 + dayIndex) * 86400000);
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
+      return new Date(start.getTime() + ((weekNum - 1) * 7 + dayIndex) * 86400000);
+    }
+
+    function dayLabelFor(weekNum, dayIndex) {
+      return dateForWeekDay(weekNum, dayIndex).toLocaleDateString('en-US', { weekday: 'short' });
     }
 
     function render() {
       updateTimelinePanel();
       renderCategoryProgress();
       renderWeeklySummary();
+      renderDailyCompletionLog();
       renderWeekSelector();
       renderTasks();
       renderTodaysFocus();
@@ -674,6 +678,86 @@
           <div class="panel-row week-row">
             <div class="panel-row-label">${escapeHTML(g.name)}</div>
             <div class="panel-row-value">${pct}%</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Builds a day-by-day activity log: every checked-off task-day (derived
+    // from each category's completed count + the real calendar date that
+    // day-index maps to via the plan's start date) plus every event that
+    // falls on that date, grouped and sorted newest-first. There's no
+    // separate "completed at" timestamp stored per day — checking off day N
+    // implies days 0..N-1 are done too (see toggleDay), so that's exactly
+    // what gets expanded here.
+    function buildDailyCompletionLog() {
+      const map = new Map(); // "YYYY-MM-DD" -> { date, tasks: [], events: [] }
+
+      function entryFor(dateObj) {
+        const d = new Date(dateObj);
+        d.setHours(0, 0, 0, 0);
+        const key = d.toISOString().slice(0, 10);
+        if (!map.has(key)) map.set(key, { date: d, key, tasks: [], events: [] });
+        return map.get(key);
+      }
+
+      appState.plan.categories.forEach(cat => {
+        const wk = weekNumOf(cat.name);
+        const completed = Number(cat.completed) || 0;
+        for (let i = 0; i < completed; i++) {
+          entryFor(dateForWeekDay(wk, i)).tasks.push({
+            category: cat.category,
+            name: cat.name
+          });
+        }
+      });
+
+      appState.events.forEach(e => {
+        const { start, end } = eventDateRange(e);
+        if (!start) return;
+        const s = new Date(start + 'T00:00:00');
+        const en = new Date((end || start) + 'T00:00:00');
+        for (let d = new Date(s); d <= en; d.setDate(d.getDate() + 1)) {
+          entryFor(d).events.push({ title: e.title, type: e.type, time: e.time });
+        }
+      });
+
+      return [...map.values()].sort((a, b) => b.date - a.date);
+    }
+
+    function renderDailyCompletionLog() {
+      const container = document.getElementById('dailyCompletionLog');
+      if (!container) return;
+
+      const log = buildDailyCompletionLog();
+      if (log.length === 0) {
+        container.innerHTML = '<p class="daily-log-empty">Nothing completed yet — check off a day in the Tracker, or add an event, and it\'ll show up here.</p>';
+        return;
+      }
+
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+
+      container.innerHTML = log.map(entry => {
+        const dateLabel = entry.date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+        const tag = entry.date.getTime() === today.getTime()
+          ? '<span class="daily-log-tag">Today</span>'
+          : (entry.date.getTime() === yesterday.getTime() ? '<span class="daily-log-tag">Yesterday</span>' : '');
+
+        const taskChips = entry.tasks.map(t => {
+          const color = CATEGORY_COLORS[t.category] || 'var(--stone)';
+          return `<span class="daily-log-chip" style="--chip-color:${color};">✓ ${escapeHTML(t.category)} · ${escapeHTML(t.name)}</span>`;
+        }).join('');
+
+        const eventChips = entry.events.map(e => {
+          const timeLabel = e.time ? ` · ${formatTime(e.time)}` : '';
+          return `<span class="daily-log-chip daily-log-chip-event">📌 ${escapeHTML(e.title)}${timeLabel}${e.type ? ` (${escapeHTML(e.type)})` : ''}</span>`;
+        }).join('');
+
+        return `
+          <div class="daily-log-day fade-in">
+            <div class="daily-log-date">${dateLabel}${tag}</div>
+            <div class="daily-log-chips">${taskChips}${eventChips}</div>
           </div>
         `;
       }).join('');
