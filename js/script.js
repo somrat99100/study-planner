@@ -557,6 +557,7 @@
       renderTodaysFocus();
       renderCalendar();
       renderUpcomingEvents();
+      renderSidebarDtTasks();
       if (document.getElementById('profileView').style.display !== 'none') {
         renderProfileView();
       }
@@ -1547,6 +1548,7 @@
       dtUid = null;
       dtTasks = [];
       dtEditingId = null;
+      renderSidebarDtTasks();
     }
 
     async function dtInit(uid) {
@@ -1560,6 +1562,7 @@
         dtTasks = [];
       }
       dtRenumber();
+      renderSidebarDtTasks();
       // If the user is already sitting on the Daily Tracker tab (fast tab
       // switch right after login), paint immediately instead of waiting
       // for the next manual navigation.
@@ -1703,6 +1706,7 @@
 
     function renderDtTasks() {
       const listEl = document.getElementById('dtTaskList');
+      renderSidebarDtTasks();
       if (!listEl) return;
 
       const hideCompleted = document.getElementById('dtHideCompleted')?.checked;
@@ -1754,6 +1758,48 @@
             <div class="row-actions">
               <button class="btn btn-sm btn-secondary" onclick="dtEditTask('${t.id}')">Edit</button>
               <button class="btn btn-sm btn-danger" onclick="dtDeleteTask('${t.id}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Compact mirror of the Daily Tracker list, shown in the sidebar under
+    // "Upcoming in Next 7 Days" so tasks are visible no matter which view
+    // is open. Same priority order as the main list; checking a box here
+    // calls the exact same dtToggleComplete() used on the Daily Tracker
+    // page, so both stay in sync automatically.
+    function renderSidebarDtTasks() {
+      const container = document.getElementById('sidebarDtTasks');
+      if (!container) return;
+
+      if (!appState.user || appState.guestMode) {
+        container.innerHTML = '<div class="text-muted text-sm">Log in to track daily tasks</div>';
+        return;
+      }
+      if (dtTasks.length === 0) {
+        container.innerHTML = '<div class="text-muted text-sm">No tasks yet — add one in Daily Tracker</div>';
+        return;
+      }
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      container.innerHTML = dtTasks.map(t => {
+        const isOverdue = !t.completed && t.dueDate && t.dueDate < todayStr;
+        let dueLabel = '';
+        if (t.dueDate) {
+          const dateLabel = new Date(t.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          const timeLabel = t.time ? ` · ${formatTime(t.time)}` : '';
+          dueLabel = `<div class="sidebar-task-due${isOverdue ? ' overdue' : ''}">📅 ${dateLabel}${timeLabel}${isOverdue ? ' · overdue' : ''}</div>`;
+        } else if (t.time) {
+          dueLabel = `<div class="sidebar-task-due">🕐 ${formatTime(t.time)}</div>`;
+        }
+        return `
+          <div class="sidebar-task-row${t.completed ? ' completed' : ''}">
+            <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="dtToggleComplete('${t.id}')">
+            <div>
+              <div class="sidebar-task-title">${escapeHTML(t.title)}</div>
+              ${dueLabel}
             </div>
           </div>
         `;

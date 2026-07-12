@@ -935,7 +935,8 @@
        still allowed by the Firestore rules, so the tracker/calendar/reports
        views keep working normally. */
     body.guest-mode [data-view="profile"],
-    body.guest-mode [data-view="dailytracker"] {
+    body.guest-mode [data-view="dailytracker"],
+    body.guest-mode #sidebarTasksCard {
       display: none;
     }
 
@@ -1855,6 +1856,60 @@
         width: 100%;
         margin-left: 34px;
       }
+    }
+
+    /* Compact read/complete-only version of the task list, for the
+       sidebar "Tasks" card — full editing still lives on the Daily
+       Tracker page itself. */
+    .sidebar-task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .sidebar-task-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 2px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-task-row:last-child {
+      border-bottom: none;
+    }
+
+    .sidebar-task-row.completed .sidebar-task-title {
+      text-decoration: line-through;
+      color: var(--text-mut);
+    }
+
+    .sidebar-task-row input[type="checkbox"] {
+      margin-top: 2px;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--moss);
+      flex-shrink: 0;
+    }
+
+    .sidebar-task-title {
+      font-size: 0.82rem;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .sidebar-task-due {
+      font-size: 0.7rem;
+      color: var(--text-mut);
+      margin-top: 1px;
+    }
+
+    .sidebar-task-due.overdue {
+      color: var(--terracotta);
+      font-weight: 600;
     }
 
 /* ─── Loading overlay (shown between login success and first render) ─── */
