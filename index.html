@@ -356,38 +356,44 @@
         </div>
       </section>
 
-      <!-- DAILY TRACKER VIEW (personal, self-service categories + study timer) -->
+      <!-- DAILY TRACKER VIEW — a simple everyday to-do list: add anything,
+           anytime, with an optional due date/time and a priority you can
+           re-rank with the ▲▼ buttons. Private per account. -->
       <section id="dailyTrackerView" class="tracker-section" style="display: none;">
-        <!-- Setup screen: shown only until the student defines their categories -->
-        <div class="card fade-in" id="dtSetupCard">
-          <h2 class="card-title">🗓️ Set Up Your Daily Tracker</h2>
-          <p class="text-muted text-sm mb" id="dtSetupIntro">Add your own study categories with a target number of days each, then start checking off days as you study. This tracker is private to your account.</p>
-          <div id="dtCatRows"></div>
-          <button class="btn btn-secondary btn-sm" id="dtAddCatBtn" type="button">+ Add Category</button>
-          <div class="dt-cat-count" id="dtCatCount">0 / 10 categories</div>
-          <button class="btn btn-primary" id="dtGenerateBtn" type="button">Generate Tracker</button>
-          <p class="profile-msg" id="dtSetupMsg"></p>
+        <div class="card fade-in">
+          <h2 class="card-title">🗒️ Daily Tracker</h2>
+          <p class="text-muted text-sm mb">Add anything you need to get done — set a priority, an optional due date and time, then check it off when it's done.</p>
+          <div class="inline-form-grid">
+            <input id="dtTaskTitle" class="login-input" placeholder="What do you need to do?" style="grid-column: 1 / -1;">
+            <div>
+              <label class="mini-label" for="dtTaskPriority">Priority</label>
+              <input id="dtTaskPriority" class="login-input" type="number" min="1" placeholder="1 = highest">
+            </div>
+            <div>
+              <label class="mini-label" for="dtTaskDueDate">Due Date (optional)</label>
+              <input id="dtTaskDueDate" class="login-input" type="date">
+            </div>
+            <div>
+              <label class="mini-label" for="dtTaskTime">Time (optional)</label>
+              <input id="dtTaskTime" class="login-input" type="time">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary btn-sm" id="dtAddTaskBtn" type="button">+ Add Task</button>
+            <button class="btn btn-secondary btn-sm" id="dtCancelEditBtn" type="button" style="display:none;">Cancel Edit</button>
+          </div>
+          <p class="profile-msg" id="dtTaskMsg"></p>
         </div>
 
-        <!-- Tracker screen: shown once categories exist -->
-        <div class="dt-wrap" id="dtTrackerScreen" style="display:none;">
-          <div class="card fade-in" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <div>
-              <h2 class="card-title" style="margin-bottom:2px;" id="dtTitle">My Daily Tracker</h2>
-              <div class="text-muted text-sm" id="dtStarted"></div>
-            </div>
-            <button class="btn btn-secondary btn-sm" id="dtEditSetupBtn" type="button">+ Add / Edit Categories</button>
+        <div class="card fade-in">
+          <div class="dt-list-head">
+            <h2 class="card-title" style="margin-bottom:0;">📋 Your Tasks</h2>
+            <label class="dt-filter-toggle">
+              <input type="checkbox" id="dtHideCompleted">
+              Hide completed
+            </label>
           </div>
-
-          <div id="dtCardsWrap" class="dt-wrap"></div>
-
-          <div class="card fade-in" id="dtArchiveSection" style="display:none;">
-            <div class="dt-archive-toggle" id="dtArchiveToggle">
-              <span>📦 Archived Categories</span>
-              <span id="dtArchiveBadge" class="dt-pct-chip">0</span>
-            </div>
-            <div class="dt-archive-list" id="dtArchiveList"></div>
-          </div>
+          <div id="dtTaskList" class="dt-task-list"></div>
         </div>
       </section>
 
@@ -415,20 +421,6 @@
         </div>
       </aside>
     </div>
-  </div>
-
-  <!-- DAILY TRACKER — floating study timer (only shown once tracker data exists) -->
-  <div class="dt-timer-fab" id="dtTimerFab" style="display:none;">
-    <div class="dt-timer-panel" id="dtTimerPanel">
-      <div class="dt-timer-digits" id="dtTimerDigits">00:00:00</div>
-      <div class="dt-timer-sub">Current session</div>
-      <select class="dt-timer-cat" id="dtTimerCatSel"><option value="">— No category —</option></select>
-      <div class="dt-timer-btns">
-        <button class="btn btn-primary btn-sm" id="dtTimerStartBtn" type="button">▶ Start</button>
-        <button class="btn btn-secondary btn-sm" id="dtTimerResetBtn" type="button">↺ Reset</button>
-      </div>
-    </div>
-    <button class="dt-timer-tog" id="dtTimerTog" type="button" title="Study Timer">⏱</button>
   </div>
 
   <!-- TOASTS — small popup success/error messages, replaces native alert() -->

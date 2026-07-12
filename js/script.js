@@ -379,13 +379,9 @@
       document.getElementById('resetAllBtn').addEventListener('click', resetAllData);
 
       // Daily Tracker actions
-      document.getElementById('dtAddCatBtn').addEventListener('click', () => dtAddCatRow());
-      document.getElementById('dtGenerateBtn').addEventListener('click', dtGenerateTracker);
-      document.getElementById('dtEditSetupBtn').addEventListener('click', dtShowSetup);
-      document.getElementById('dtArchiveToggle').addEventListener('click', dtToggleArchive);
-      document.getElementById('dtTimerTog').addEventListener('click', dtToggleTimerPanel);
-      document.getElementById('dtTimerStartBtn').addEventListener('click', dtTimerStart);
-      document.getElementById('dtTimerResetBtn').addEventListener('click', dtTimerReset);
+      document.getElementById('dtAddTaskBtn').addEventListener('click', dtAddOrUpdateTask);
+      document.getElementById('dtCancelEditBtn').addEventListener('click', dtCancelEdit);
+      document.getElementById('dtHideCompleted').addEventListener('change', renderDtTasks);
     }
 
     function switchView(view) {
@@ -394,7 +390,7 @@
       document.getElementById('profileView').style.display = view === 'profile' ? 'flex' : 'none';
       document.getElementById('reportsView').style.display = view === 'reports' ? 'flex' : 'none';
       document.getElementById('dailyTrackerView').style.display = view === 'dailytracker' ? 'flex' : 'none';
-      document.getElementById('dtTimerFab').style.display = (view === 'dailytracker' && dtData) ? 'block' : 'none';
+      if (view === 'dailytracker') renderDtTasks();
       if (view === 'profile') renderProfileView();
     }
 
@@ -1534,306 +1530,232 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // DAILY TRACKER — personal, self-service category tracker with
-    // a floating study timer. Uses the SAME sign-in and Firestore
-    // project as the rest of the app (doc: dailyTrackers/{uid}),
-    // so there is only one login system for the whole site.
+    // DAILY TRACKER — a private, per-account everyday to-do list.
+    // Add anything at any time, with an optional priority, due date,
+    // and time. Priority IS the list's order (1 = top); the ▲▼
+    // buttons re-rank a task by moving it and renumbering everyone
+    // else to match. Stored as a single array on dailyTrackers/{uid}
+    // (same doc/rules the old tracker used) — small enough that
+    // reading/writing the whole list on each change is simple and
+    // plenty fast.
     // ═══════════════════════════════════════════════════════════
-    const DT_MAX_CATS = 10;
     let dtUid = null;
-    let dtData = null;          // { categories:[...], totalStudySecs, createdAt }
-    let dtArchiveOpen = false;
-
-    // ── timer state ──
-    let dtTimerInt = null;
-    let dtTimerRunning = false;
-    let dtRunStartTs = null;
-    let dtBaseSessionSecs = 0;
+    let dtTasks = [];      // [{ id, title, priority, dueDate, time, completed, createdAt }]
+    let dtEditingId = null;
 
     function dtReset() {
-      dtUid = null; dtData = null;
-      clearInterval(dtTimerInt); dtTimerRunning = false; dtRunStartTs = null; dtBaseSessionSecs = 0;
-      document.getElementById('dtTimerFab').style.display = 'none';
+      dtUid = null;
+      dtTasks = [];
+      dtEditingId = null;
     }
 
     async function dtInit(uid) {
       dtUid = uid;
       try {
         const snap = await getDoc(doc(db, 'dailyTrackers', uid));
-        dtData = snap.exists() ? snap.data() : null;
+        const data = snap.exists() ? snap.data() : null;
+        dtTasks = (data && Array.isArray(data.tasks)) ? data.tasks : [];
       } catch (e) {
         console.error('Error loading Daily Tracker:', e);
-        dtData = null;
+        dtTasks = [];
       }
-      if (dtData && Array.isArray(dtData.categories) && dtData.categories.length) {
-        dtShowTracker();
-      } else {
-        dtShowSetup();
+      dtRenumber();
+      // If the user is already sitting on the Daily Tracker tab (fast tab
+      // switch right after login), paint immediately instead of waiting
+      // for the next manual navigation.
+      if (document.getElementById('dailyTrackerView').style.display !== 'none') {
+        renderDtTasks();
       }
-      // Keep the timer FAB in sync with whichever view is currently open
-      const onDtView = document.getElementById('dailyTrackerView').style.display !== 'none';
-      document.getElementById('dtTimerFab').style.display = (onDtView && dtData) ? 'block' : 'none';
     }
 
     async function dtSave() {
-      if (!dtUid || !dtData) return;
+      if (!dtUid) return;
       try {
-        await setDoc(doc(db, 'dailyTrackers', dtUid), dtData);
+        await setDoc(doc(db, 'dailyTrackers', dtUid), { tasks: dtTasks, updatedAt: new Date() });
       } catch (e) {
         console.error('Error saving Daily Tracker:', e);
+        showToast('Could not save — please check your connection.', 'error');
       }
     }
 
-    // ─── SETUP SCREEN ───
-    function dtShowSetup() {
-      document.getElementById('dtSetupCard').style.display = '';
-      document.getElementById('dtTrackerScreen').style.display = 'none';
-      document.getElementById('dtTimerFab').style.display = 'none';
-      const rows = document.getElementById('dtCatRows');
-      rows.innerHTML = '';
-      const existing = (dtData?.categories || []).filter(c => !c.archived);
-      if (existing.length) {
-        existing.forEach(c => dtAddCatRow(c.name, c.target, c.targetDays));
-        document.getElementById('dtSetupIntro').textContent = 'Edit your categories below, or add new ones. Existing progress is kept for categories you don\u2019t rename.';
-      } else {
-        document.getElementById('dtSetupIntro').textContent = 'Add your own study categories with a target number of days each, then start checking off days as you study. This tracker is private to your account.';
-        dtAddCatRow();
-      }
-      dtUpdateCatCount();
+    // Keeps priority numbers a clean, gapless 1..N matching the array's
+    // actual order. The array position IS the source of truth for order;
+    // "priority" is just that position shown as a friendly number.
+    function dtRenumber() {
+      dtTasks.forEach((t, i) => { t.priority = i + 1; });
     }
 
-    function dtAddCatRow(name = '', target = '', days = '') {
-      const rows = document.getElementById('dtCatRows');
-      if (rows.children.length >= DT_MAX_CATS) return;
-      const row = document.createElement('div');
-      row.className = 'dt-setup-row';
-      row.innerHTML = `
-        <input type="text" class="login-input dt-cn" placeholder="Category name" value="${escapeHTML(name)}" style="margin-bottom:0;">
-        <input type="text" class="login-input dt-ct" placeholder="Target / chapter" value="${escapeHTML(target)}" style="margin-bottom:0;">
-        <input type="number" min="1" class="login-input dt-cd" placeholder="Days" value="${days}" style="margin-bottom:0;">
-        <button type="button" class="dt-rm-btn">✕</button>
-      `;
-      row.querySelector('.dt-rm-btn').addEventListener('click', () => { row.remove(); dtUpdateCatCount(); });
-      rows.appendChild(row);
-      dtUpdateCatCount();
+    function dtGenId() {
+      return 'dt' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     }
 
-    function dtUpdateCatCount() {
-      const n = document.getElementById('dtCatRows').children.length;
-      document.getElementById('dtCatCount').textContent = `${n} / ${DT_MAX_CATS} categories`;
-      document.getElementById('dtAddCatBtn').style.display = n >= DT_MAX_CATS ? 'none' : '';
+    window.dtEditTask = function(id) {
+      const t = dtTasks.find(x => x.id === id);
+      if (!t) return;
+      document.getElementById('dtTaskTitle').value = t.title || '';
+      document.getElementById('dtTaskPriority').value = t.priority || '';
+      document.getElementById('dtTaskDueDate').value = t.dueDate || '';
+      document.getElementById('dtTaskTime').value = t.time || '';
+      dtEditingId = id;
+      document.getElementById('dtAddTaskBtn').textContent = 'Update Task';
+      document.getElementById('dtCancelEditBtn').style.display = '';
+      document.getElementById('dtTaskMsg').textContent = '';
+      document.getElementById('dtTaskTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    async function dtGenerateTracker() {
-      const rowsEl = document.querySelectorAll('#dtCatRows .dt-setup-row');
-      const prevByName = {};
-      (dtData?.categories || []).forEach(c => { prevByName[c.name.trim().toLowerCase()] = c; });
-
-      const cats = [];
-      let invalid = false;
-      rowsEl.forEach(r => {
-        const name = r.querySelector('.dt-cn').value.trim();
-        const target = r.querySelector('.dt-ct').value.trim();
-        const daysN = parseInt(r.querySelector('.dt-cd').value, 10);
-        if (!name) return;
-        if (isNaN(daysN) || daysN < 1) { invalid = true; return; }
-        const prev = prevByName[name.toLowerCase()];
-        let daysArr;
-        if (prev && !prev.archived) {
-          daysArr = prev.days.slice(0, daysN);
-          while (daysArr.length < daysN) daysArr.push(false);
-        } else {
-          daysArr = Array(daysN).fill(false);
-        }
-        cats.push({
-          id: prev?.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-          name, target: target || '—', targetDays: daysN,
-          days: daysArr, archived: false
-        });
-      });
-
-      if (invalid) return dtSetupMsg('Each category needs a valid number of days (1+).', true);
-      if (!cats.length) return dtSetupMsg('Add at least one category with a name and target days.', true);
-
-      // Preserve already-archived categories untouched
-      const archived = (dtData?.categories || []).filter(c => c.archived);
-
-      dtData = {
-        categories: [...cats, ...archived],
-        totalStudySecs: dtData?.totalStudySecs || 0,
-        createdAt: dtData?.createdAt || new Date().toISOString()
-      };
-      await dtSave();
-      dtSetupMsg('Saved!', false);
-      dtShowTracker();
+    function dtCancelEdit() {
+      dtEditingId = null;
+      document.getElementById('dtTaskTitle').value = '';
+      document.getElementById('dtTaskPriority').value = '';
+      document.getElementById('dtTaskDueDate').value = '';
+      document.getElementById('dtTaskTime').value = '';
+      document.getElementById('dtAddTaskBtn').textContent = '+ Add Task';
+      document.getElementById('dtCancelEditBtn').style.display = 'none';
+      document.getElementById('dtTaskMsg').textContent = '';
     }
 
-    function dtSetupMsg(msg, isError) {
-      const el = document.getElementById('dtSetupMsg');
-      el.textContent = msg;
-      el.style.color = isError ? 'var(--terracotta)' : 'var(--moss)';
-      if (!isError) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2500);
-    }
+    async function dtAddOrUpdateTask() {
+      const msgEl = document.getElementById('dtTaskMsg');
+      const title = document.getElementById('dtTaskTitle').value.trim();
+      const priorityRaw = document.getElementById('dtTaskPriority').value;
+      const dueDate = document.getElementById('dtTaskDueDate').value;
+      const time = document.getElementById('dtTaskTime').value;
+      msgEl.textContent = '';
 
-    // ─── TRACKER SCREEN ───
-    function dtShowTracker() {
-      document.getElementById('dtSetupCard').style.display = 'none';
-      document.getElementById('dtTrackerScreen').style.display = '';
-      const onDtView = document.getElementById('dailyTrackerView').style.display !== 'none';
-      document.getElementById('dtTimerFab').style.display = onDtView ? 'block' : 'none';
-      document.getElementById('dtTitle').textContent = `My Daily Tracker`;
-      document.getElementById('dtStarted').textContent = dtData?.createdAt
-        ? `Started ${new Date(dtData.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-        : '';
-      dtRenderCards();
-      dtRenderArchive();
-      dtFillTimerCats();
-    }
-
-    function dtProgress(cat) {
-      const checked = cat.days.filter(Boolean).length;
-      const pct = cat.targetDays ? Math.min(100, Math.round(checked / cat.targetDays * 100)) : 0;
-      return { checked, pct };
-    }
-
-    function dtRenderCards() {
-      const wrap = document.getElementById('dtCardsWrap');
-      wrap.innerHTML = '';
-      const active = dtData.categories.filter(c => !c.archived);
-      if (!active.length) {
-        wrap.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🗓️</div><p>All categories archived — add a new one from "Add / Edit Categories".</p></div>';
+      if (!title) {
+        msgEl.textContent = 'Enter what you need to do.';
         return;
       }
-      active.forEach(cat => {
-        const { checked, pct } = dtProgress(cat);
-        const card = document.createElement('div');
-        card.className = 'dt-card fade-in';
-        card.innerHTML = `
-          <div class="dt-card-top">
-            <div>
-              <div class="dt-cat-name">${escapeHTML(cat.name)}</div>
-              <div class="dt-cat-target">${escapeHTML(cat.target)} · ${checked}/${cat.targetDays} days</div>
-            </div>
-            <div class="dt-pct-chip${pct >= 100 ? ' full' : ''}">${pct}%</div>
-          </div>
-          <div class="dt-days"></div>
-        `;
-        const daysEl = card.querySelector('.dt-days');
-        cat.days.forEach((done, di) => {
-          const d = document.createElement('div');
-          d.className = 'dt-day' + (done ? ' done' : '');
-          d.textContent = done ? '✓' : (di + 1);
-          d.addEventListener('click', () => dtToggleDay(cat.id, di));
-          daysEl.appendChild(d);
-        });
-        wrap.appendChild(card);
-      });
+
+      if (dtEditingId) {
+        const t = dtTasks.find(x => x.id === dtEditingId);
+        if (t) {
+          t.title = title;
+          t.dueDate = dueDate || '';
+          t.time = time || '';
+          // Re-rank only if a valid new priority number was actually typed
+          const parsed = priorityRaw ? parseInt(priorityRaw, 10) : NaN;
+          if (!Number.isNaN(parsed)) {
+            const wantIdx = Math.min(Math.max(parsed, 1), dtTasks.length) - 1;
+            dtTasks = dtTasks.filter(x => x.id !== dtEditingId);
+            dtTasks.splice(wantIdx, 0, t);
+          }
+        }
+        dtRenumber();
+        await dtSave();
+        dtCancelEdit();
+        renderDtTasks();
+        showToast('Task updated.', 'success');
+        return;
+      }
+
+      const newTask = {
+        id: dtGenId(),
+        title,
+        dueDate: dueDate || '',
+        time: time || '',
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+
+      const parsed = priorityRaw ? parseInt(priorityRaw, 10) : NaN;
+      const insertAt = Number.isNaN(parsed)
+        ? dtTasks.length
+        : Math.min(Math.max(parsed, 1), dtTasks.length + 1) - 1;
+      dtTasks.splice(insertAt, 0, newTask);
+      dtRenumber();
+
+      await dtSave();
+      dtCancelEdit();
+      renderDtTasks();
+      showToast('Task added.', 'success');
     }
 
-    async function dtToggleDay(catId, dayIdx) {
-      const cat = dtData.categories.find(c => c.id === catId);
-      if (!cat) return;
-      cat.days[dayIdx] = !cat.days[dayIdx];
-
-      // Auto-archive once every day is checked, preserving the record.
-      const { checked } = dtProgress(cat);
-      if (checked >= cat.targetDays && !cat.archived) {
-        cat.archived = true;
-        cat.finalChecked = checked;
-        cat.completedAt = new Date().toLocaleDateString('en-GB');
-      }
-      dtRenderCards();
-      dtRenderArchive();
+    window.dtToggleComplete = async function(id) {
+      const t = dtTasks.find(x => x.id === id);
+      if (!t) return;
+      t.completed = !t.completed;
+      renderDtTasks();
       await dtSave();
     }
 
-    function dtRenderArchive() {
-      const arc = dtData.categories.filter(c => c.archived);
-      const section = document.getElementById('dtArchiveSection');
-      if (!arc.length) { section.style.display = 'none'; return; }
-      section.style.display = '';
-      document.getElementById('dtArchiveBadge').textContent = arc.length;
-      const list = document.getElementById('dtArchiveList');
-      list.className = 'dt-archive-list' + (dtArchiveOpen ? ' open' : '');
-      list.innerHTML = arc.map(c => `
-        <div class="dt-archive-card">
-          <div>
-            <div style="font-weight:600;">${escapeHTML(c.name)}</div>
-            <div class="text-muted text-sm">${escapeHTML(c.target)} · ${c.finalChecked || c.targetDays}/${c.targetDays} days${c.completedAt ? ' · Completed ' + c.completedAt : ''}</div>
-          </div>
-          <div class="dt-pct-chip full">✓ 100%</div>
-        </div>
-      `).join('');
+    window.dtMoveTask = async function(id, dir) {
+      const idx = dtTasks.findIndex(x => x.id === id);
+      if (idx === -1) return;
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= dtTasks.length) return;
+      const [item] = dtTasks.splice(idx, 1);
+      dtTasks.splice(newIdx, 0, item);
+      dtRenumber();
+      renderDtTasks();
+      await dtSave();
     }
 
-    function dtToggleArchive() {
-      dtArchiveOpen = !dtArchiveOpen;
-      dtRenderArchive();
+    window.dtDeleteTask = async function(id) {
+      if (!confirm('Delete this task?')) return;
+      dtTasks = dtTasks.filter(x => x.id !== id);
+      dtRenumber();
+      if (dtEditingId === id) dtCancelEdit();
+      renderDtTasks();
+      await dtSave();
+      showToast('Task deleted.', 'success');
     }
 
-    // ─── STUDY TIMER (localStorage-persisted, flushed to Firestore) ───
-    function dtPad2(n) { return String(n).padStart(2, '0'); }
+    function renderDtTasks() {
+      const listEl = document.getElementById('dtTaskList');
+      if (!listEl) return;
 
-    function dtLiveElapsed() {
-      return dtTimerRunning ? Math.floor((Date.now() - dtRunStartTs) / 1000) : 0;
-    }
+      const hideCompleted = document.getElementById('dtHideCompleted')?.checked;
+      const tasks = hideCompleted ? dtTasks.filter(t => !t.completed) : dtTasks;
 
-    function dtUpdateDigits() {
-      const secs = dtBaseSessionSecs + dtLiveElapsed();
-      const hh = Math.floor(secs / 3600), mm = Math.floor((secs % 3600) / 60), ss = secs % 60;
-      document.getElementById('dtTimerDigits').textContent = `${dtPad2(hh)}:${dtPad2(mm)}:${dtPad2(ss)}`;
-    }
-
-    function dtRunTick() {
-      clearInterval(dtTimerInt);
-      dtUpdateDigits();
-      dtTimerInt = setInterval(dtUpdateDigits, 1000);
-    }
-
-    function dtFillTimerCats() {
-      const sel = document.getElementById('dtTimerCatSel');
-      sel.innerHTML = '<option value="">— No category —</option>';
-      (dtData?.categories || []).forEach(c => {
-        if (c.archived) return;
-        const o = document.createElement('option');
-        o.value = c.id; o.textContent = c.name;
-        sel.appendChild(o);
-      });
-    }
-
-    function dtToggleTimerPanel() {
-      document.getElementById('dtTimerPanel').classList.toggle('open');
-    }
-
-    async function dtTimerStart() {
-      const btn = document.getElementById('dtTimerStartBtn');
-      const tog = document.getElementById('dtTimerTog');
-      if (dtTimerRunning) {
-        // Pause — flush elapsed time into the running total
-        dtTimerRunning = false;
-        dtBaseSessionSecs += dtLiveElapsed();
-        clearInterval(dtTimerInt);
-        dtData.totalStudySecs = (dtData.totalStudySecs || 0) + dtLiveElapsed();
-        btn.textContent = '▶ Start';
-        tog.classList.remove('running');
-        await dtSave();
-      } else {
-        dtTimerRunning = true;
-        dtRunStartTs = Date.now();
-        btn.textContent = '⏸ Pause';
-        tog.classList.add('running');
-        dtRunTick();
+      if (dtTasks.length === 0) {
+        listEl.innerHTML = '<div class="dt-empty-state">No tasks yet — add your first one above.</div>';
+        return;
       }
-    }
+      if (tasks.length === 0) {
+        listEl.innerHTML = '<div class="dt-empty-state">Everything\u2019s checked off. \ud83c\udf89</div>';
+        return;
+      }
 
-    function dtTimerReset() {
-      if (dtTimerRunning) dtTimerStart(); // pause & flush first
-      clearInterval(dtTimerInt);
-      dtBaseSessionSecs = 0;
-      dtUpdateDigits();
-    }
+      const todayStr = new Date().toISOString().slice(0, 10);
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && dtTimerRunning) dtRunTick();
-    });
-    window.addEventListener('focus', () => { if (dtTimerRunning) dtRunTick(); });
+      listEl.innerHTML = tasks.map(t => {
+        const realIdx = dtTasks.findIndex(x => x.id === t.id);
+        const isFirst = realIdx === 0;
+        const isLast = realIdx === dtTasks.length - 1;
+        const isOverdue = !t.completed && t.dueDate && t.dueDate < todayStr;
+        const isToday = t.dueDate === todayStr;
+
+        let dueBadge = '';
+        if (t.dueDate) {
+          const dateLabel = new Date(t.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          const timeLabel = t.time ? ` · ${formatTime(t.time)}` : '';
+          const badgeClass = isOverdue ? 'dt-due-badge overdue' : (isToday ? 'dt-due-badge today' : 'dt-due-badge');
+          const tag = isOverdue ? ' (overdue)' : (isToday ? ' (today)' : '');
+          dueBadge = `<span class="${badgeClass}">\ud83d\udcc5 ${dateLabel}${timeLabel}${tag}</span>`;
+        } else if (t.time) {
+          dueBadge = `<span class="dt-due-badge">\ud83d\udd50 ${formatTime(t.time)}</span>`;
+        }
+
+        return `
+          <div class="dt-task-row${t.completed ? ' completed' : ''}${isOverdue ? ' overdue' : ''}">
+            <div class="dt-task-order">
+              <button class="dt-move-btn" ${isFirst ? 'disabled' : ''} onclick="dtMoveTask('${t.id}', -1)" title="Move up — higher priority">▲</button>
+              <span class="dt-priority-badge" title="Priority">${t.priority}</span>
+              <button class="dt-move-btn" ${isLast ? 'disabled' : ''} onclick="dtMoveTask('${t.id}', 1)" title="Move down — lower priority">▼</button>
+            </div>
+            <label class="dt-task-check">
+              <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="dtToggleComplete('${t.id}')">
+            </label>
+            <div class="dt-task-body">
+              <div class="dt-task-title">${escapeHTML(t.title)}</div>
+              ${dueBadge ? `<div class="dt-task-meta">${dueBadge}</div>` : ''}
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-sm btn-secondary" onclick="dtEditTask('${t.id}')">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="dtDeleteTask('${t.id}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }

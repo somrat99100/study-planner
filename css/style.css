@@ -1690,161 +1690,171 @@
     #reportsView .dashboard-panels { margin-bottom: 16px; }
 
     /* ═══════════════════════════════════════════════════════════
-       DAILY TRACKER (personal, self-service tracker + study timer)
+       DAILY TRACKER — everyday to-do list (private, per account)
     ═══════════════════════════════════════════════════════════ */
-    .dt-wrap { display: flex; flex-direction: column; gap: 20px; }
-
-    .dt-setup-row {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr 0.8fr auto;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    @media (max-width: 640px) {
-      .dt-setup-row { grid-template-columns: 1fr 1fr; }
-    }
-
-    .dt-rm-btn {
-      background: var(--cream-90);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--terracotta);
-      font-weight: 700;
-      cursor: pointer;
-      min-width: 40px;
-    }
-    .dt-rm-btn:hover { background: var(--terracotta-grad); color: #fff; border-color: transparent; }
-
-    .dt-cat-count { font-size: 0.8rem; color: var(--text-mut); margin: 6px 0 14px; }
-
-    .dt-card {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .dt-card-top {
+    .dt-list-head {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
     }
 
-    .dt-cat-name { font-weight: 700; font-family: var(--serif); font-size: 1.05rem; }
-    .dt-cat-target { font-size: 0.82rem; color: var(--text-mut); margin-top: 2px; }
-
-    .dt-pct-chip {
-      font-family: var(--mono);
-      font-weight: 800;
-      font-size: 0.85rem;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: var(--cream-90);
-      color: var(--terracotta);
-      white-space: nowrap;
-    }
-    .dt-pct-chip.full { background: var(--moss-grad); color: #fff; }
-
-    .dt-days {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+    .dt-filter-toggle {
+      display: flex;
+      align-items: center;
       gap: 6px;
-      margin-top: 12px;
-      justify-items: center;
-    }
-
-    .dt-day {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--cream-95);
-      border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-family: var(--mono); font-size: 0.6rem; font-weight: 700;
+      font-size: 0.82rem;
       color: var(--text-mut);
       cursor: pointer;
-      box-shadow: 0 2px 5px rgba(26,20,16,0.06);
-      transition: transform .15s, background .15s, box-shadow .15s, border-color .15s;
       user-select: none;
     }
-    .dt-day:hover { border-color: var(--moss); background: var(--cream); transform: translateY(-2px); box-shadow: 0 6px 12px rgba(107,155,94,0.22); }
-    .dt-day:active { transform: scale(0.92) translateY(0); }
-    .dt-day.done { background: var(--moss-grad); color: #fff; border-color: transparent; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(107,155,94,0.38); }
-    .dt-day.blocked { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
-    .dt-archive-toggle {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--cream-95);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 14px;
+    .dt-filter-toggle input {
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.88rem;
+    }
+
+    .dt-task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dt-empty-state {
+      text-align: center;
       color: var(--text-mut);
+      padding: 24px 0;
+      font-size: 0.9rem;
     }
-    .dt-archive-list { display: none; flex-direction: column; gap: 8px; margin-top: 8px; }
-    .dt-archive-list.open { display: flex; }
-    .dt-archive-card {
+
+    .dt-task-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--cream);
+      transition: opacity 0.2s, background 0.2s;
+    }
+
+    .dt-task-row.overdue {
+      border-color: var(--terracotta);
+      background: color-mix(in srgb, var(--terracotta-light) 25%, var(--cream));
+    }
+
+    .dt-task-row.completed {
+      opacity: 0.55;
+      background: var(--cream-95);
+    }
+
+    .dt-task-row.completed .dt-task-title {
+      text-decoration: line-through;
+    }
+
+    .dt-task-order {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .dt-move-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-mut);
+      font-size: 0.7rem;
+      line-height: 1;
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    .dt-move-btn:hover:not(:disabled) {
+      background: var(--cream-95);
+      color: var(--moss-dark);
+    }
+
+    .dt-move-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    .dt-priority-badge {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: var(--text-main);
+      background: var(--cream-95);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dt-task-check {
+      flex-shrink: 0;
+      display: flex;
+    }
+
+    .dt-task-check input {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: var(--moss);
+    }
+
+    .dt-task-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dt-task-title {
+      font-weight: 600;
+      font-size: 0.92rem;
+      word-break: break-word;
+    }
+
+    .dt-task-meta {
+      margin-top: 3px;
+    }
+
+    .dt-due-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      color: var(--text-mut);
       background: var(--cream-95);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 10px 14px;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 0.85rem;
+      padding: 1px 8px;
     }
 
-    /* ── Timer FAB ── */
-    .dt-timer-fab { position: fixed; bottom: 20px; right: 20px; z-index: 500; }
-
-    .dt-timer-tog {
-      width: 56px; height: 56px; border-radius: 50%;
-      background: var(--moss-grad);
-      color: #fff; border: none; font-size: 1.4rem;
-      box-shadow: var(--shadow-xl);
-      cursor: pointer;
-      transition: transform .2s;
-    }
-    .dt-timer-tog:hover { transform: scale(1.06); }
-    .dt-timer-tog.running { background: var(--terracotta-grad); animation: dtPulse 1.6s ease-in-out infinite; }
-
-    @keyframes dtPulse {
-      0%,100% { box-shadow: var(--shadow-xl); }
-      50% { box-shadow: 0 0 0 8px rgba(217,126,102,0.18), var(--shadow-xl); }
+    .dt-due-badge.today {
+      color: var(--moss-dark);
+      border-color: var(--moss);
+      background: var(--moss-light);
     }
 
-    .dt-timer-panel {
-      position: absolute;
-      bottom: 68px; right: 0;
-      width: 240px;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: var(--shadow-xl);
-      padding: 18px;
-      opacity: 0; pointer-events: none;
-      transform: scale(0.94) translateY(6px);
-      transition: all .18s ease;
-    }
-    .dt-timer-panel.open { opacity: 1; pointer-events: all; transform: scale(1) translateY(0); }
-
-    .dt-timer-digits { text-align: center; font-family: var(--mono); font-weight: 700; font-size: 1.9rem; color: var(--text-main); margin-bottom: 6px; }
-    .dt-timer-sub { text-align: center; font-size: 0.72rem; color: var(--text-mut); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
-
-    select.dt-timer-cat {
-      width: 100%; margin-bottom: 10px; padding: 8px 10px;
-      border: 1px solid var(--border); border-radius: 8px;
-      font-family: var(--sans); font-size: 0.85rem; background: var(--cream-95);
+    .dt-due-badge.overdue {
+      color: #fff;
+      border-color: var(--terracotta);
+      background: var(--terracotta);
     }
 
-    .dt-timer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-    @media (max-width: 480px) {
-      .dt-timer-fab { bottom: 14px; right: 14px; }
-      .dt-timer-panel { right: -6px; width: calc(100vw - 40px); max-width: 260px; }
+    @media (max-width: 560px) {
+      .dt-task-row {
+        flex-wrap: wrap;
+      }
+      .dt-task-row .row-actions {
+        order: 5;
+        width: 100%;
+        margin-left: 34px;
+      }
     }
 
 /* ─── Loading overlay (shown between login success and first render) ─── */
