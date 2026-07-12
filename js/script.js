@@ -49,6 +49,17 @@
       return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
     }
 
+    // Formats a "HH:MM" 24h string (from an <input type="time">) into a
+    // friendly 12h label, e.g. "14:30" -> "2:30 PM". Returns '' if empty/invalid.
+    function formatTime12h(hhmm) {
+      if (!hhmm) return '';
+      const [h, m] = hhmm.split(':').map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return '';
+      const period = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+    }
+
     // Loading-overlay helpers: show the spinner, hide everything, or swap
     // to an error message + retry button so a stuck load is never silent.
     function showLoadOverlay() {
@@ -319,6 +330,20 @@
       document.getElementById('cancelTaskEditBtn').addEventListener('click', cancelTaskEdit);
       document.getElementById('addEventBtn').addEventListener('click', addEventInline);
       document.getElementById('cancelEventEditBtn').addEventListener('click', cancelEventEdit);
+
+      // Calendar month navigation
+      document.getElementById('calPrevBtn').addEventListener('click', () => {
+        calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+        renderCalendar();
+      });
+      document.getElementById('calNextBtn').addEventListener('click', () => {
+        calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+        renderCalendar();
+      });
+      document.getElementById('calTodayBtn').addEventListener('click', () => {
+        calendarViewDate = new Date();
+        renderCalendar();
+      });
 
       // Profile sub-tabs (Account / Plan Duration / Tasks / Events / Data & Backup) —
       // one unified page instead of separate cards.
@@ -869,6 +894,7 @@
         : '<div class="inline-list-row text-muted">No tasks yet.</div>';
 
       const eventListEl = document.getElementById('pfEventList');
+      const todayStr = new Date().toISOString().slice(0, 10);
       const orderedEvents = [...appState.events].sort((a, b) => new Date(eventDateRange(a).start) - new Date(eventDateRange(b).start));
       eventListEl.innerHTML = orderedEvents.length
         ? orderedEvents.map(e => {
@@ -876,9 +902,11 @@
             const dateLabel = !start ? '—' : (start === end
               ? new Date(start).toLocaleDateString('en-GB')
               : `${new Date(start).toLocaleDateString('en-GB')} – ${new Date(end).toLocaleDateString('en-GB')}`);
+            const timeLabel = e.time ? ` · ${formatTime(e.time)}` : '';
+            const isPast = (end || start) < todayStr;
             return `
-              <div class="inline-list-row">
-                <span><strong>${escapeHTML(e.title)}</strong> · ${dateLabel} · ${escapeHTML(e.type || '')}</span>
+              <div class="inline-list-row${isPast ? ' is-past-event' : ''}">
+                <span><strong>${escapeHTML(e.title)}</strong> · ${dateLabel}${timeLabel} · ${escapeHTML(e.type || '')}${isPast ? ' <span class="past-tag">Past</span>' : ''}</span>
                 <div class="row-actions">
                   <button class="btn btn-sm btn-secondary" onclick="editEventInline('${e.id}')">Edit</button>
                   <button class="btn btn-sm btn-danger" onclick="deleteEventInline('${e.id}')">Delete</button>
@@ -1194,6 +1222,7 @@
       document.getElementById('pfEventTitle').value = '';
       document.getElementById('pfEventStartDate').value = '';
       document.getElementById('pfEventEndDate').value = '';
+      document.getElementById('pfEventTime').value = '';
       document.getElementById('pfEventType').value = 'Exam';
       editingEventId = null;
       document.getElementById('addEventBtn').textContent = '+ Add Event';
@@ -1207,6 +1236,7 @@
       document.getElementById('pfEventTitle').value = e.title || '';
       document.getElementById('pfEventStartDate').value = start || '';
       document.getElementById('pfEventEndDate').value = (end && end !== start) ? end : '';
+      document.getElementById('pfEventTime').value = e.time || '';
       document.getElementById('pfEventType').value = e.type || 'Exam';
       editingEventId = eventId;
       document.getElementById('addEventBtn').textContent = 'Update Event';
@@ -1225,6 +1255,7 @@
       const title = document.getElementById('pfEventTitle').value.trim();
       const startDate = document.getElementById('pfEventStartDate').value;
       let endDate = document.getElementById('pfEventEndDate').value;
+      const time = document.getElementById('pfEventTime').value; // optional, "" if not set
       const type = document.getElementById('pfEventType').value;
       msgEl.textContent = '';
 
@@ -1241,9 +1272,9 @@
       const wasEditing = !!editingEventId;
       try {
         if (editingEventId) {
-          await updateDoc(doc(db, "events", editingEventId), { title, startDate, endDate, type });
+          await updateDoc(doc(db, "events", editingEventId), { title, startDate, endDate, time, type });
         } else {
-          await addDoc(collection(db, "events"), { title, startDate, endDate, type });
+          await addDoc(collection(db, "events"), { title, startDate, endDate, time, type });
         }
         // The live events listener repaints the calendar/upcoming lists —
         // no manual reload needed.
@@ -1266,18 +1297,24 @@
       }
     }
 
+    // Tracks which month the user has navigated to — starts on the real
+    // current month, but Prev/Next/Today can move it independently so
+    // browsing the calendar doesn't depend on today's date.
+    let calendarViewDate = new Date();
+
     function renderCalendar() {
       const grid = document.getElementById('calendarGrid');
       const monthLabel = document.getElementById('calendarMonth');
-      
+
       const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      
+      today.setHours(0, 0, 0, 0);
+      const year = calendarViewDate.getFullYear();
+      const month = calendarViewDate.getMonth();
+
       monthLabel.textContent = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      
+
       grid.innerHTML = '';
-      
+
       // Day of week headers
       ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(day => {
         const dow = document.createElement('div');
@@ -1304,20 +1341,41 @@
         cell.textContent = day;
 
         const isToday = date.toDateString() === today.toDateString();
-        const isExamDay = appState.events.some(e => {
-          if (e.type !== 'Exam') return false;
+        const isPast = date < today && !isToday;
+
+        const dayEvents = appState.events.filter(e => {
           const { start, end } = eventDateRange(e);
           if (!start) return false;
           const s = new Date(start); s.setHours(0, 0, 0, 0);
           const en = new Date(end || start); en.setHours(0, 0, 0, 0);
           return date >= s && date <= en;
         });
+        const isExamDay = dayEvents.some(e => e.type === 'Exam');
+        const hasEvent = dayEvents.length > 0;
 
         if (isToday) cell.classList.add('today');
+        if (isPast) cell.classList.add('past');
         if (isExamDay) cell.classList.add('exam-day');
+        if (hasEvent) cell.classList.add('has-event');
+        if (hasEvent) {
+          cell.title = dayEvents.map(e => `${e.title}${e.time ? ' · ' + formatTime(e.time) : ''} (${e.type || 'Event'})`).join('\n');
+        }
 
         grid.appendChild(cell);
       }
+    }
+
+    // "14:30" -> "2:30 PM". Falls back to the raw value if it doesn't
+    // parse, so nothing crashes on odd/legacy data.
+    function formatTime(t) {
+      if (!t) return '';
+      const m = String(t).match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return t;
+      let h = parseInt(m[1], 10);
+      const min = m[2];
+      const suffix = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${min} ${suffix}`;
     }
 
     function renderUpcomingEvents() {
@@ -1347,9 +1405,12 @@
         container.innerHTML = '<div class="text-muted text-center">No events scheduled</div>';
         nextWeekContainer.innerHTML = '<div class="text-muted text-sm">No events scheduled</div>';
       } else {
-        const dateLabelFor = ({ start, end }) => start === end
-          ? new Date(start).toLocaleDateString('en-GB')
-          : `${new Date(start).toLocaleDateString('en-GB')} – ${new Date(end).toLocaleDateString('en-GB')}`;
+        const dateLabelFor = ({ start, end, e }) => {
+          const dateStr = start === end
+            ? new Date(start).toLocaleDateString('en-GB')
+            : `${new Date(start).toLocaleDateString('en-GB')} – ${new Date(end).toLocaleDateString('en-GB')}`;
+          return e.time ? `${dateStr} · ${formatTime(e.time)}` : dateStr;
+        };
 
         container.innerHTML = upcomingEvents.map(x => `
           <div class="event-item fade-in">

@@ -369,6 +369,32 @@
       gap: 16px;
     }
 
+    .cal-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .cal-nav-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .cal-today-link {
+      background: none;
+      border: none;
+      color: var(--moss-dark);
+      font-size: 0.75rem;
+      text-decoration: underline;
+      cursor: pointer;
+      font-family: var(--sans);
+      padding: 0;
+    }
+
     .calendar-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -387,6 +413,7 @@
     }
 
     .cal-day {
+      position: relative;
       aspect-ratio: 1;
       display: flex;
       align-items: center;
@@ -418,6 +445,39 @@
       background: var(--terracotta-light);
       border-color: var(--terracotta);
       font-weight: 600;
+    }
+
+    /* Days that have already gone by are visibly dimmed — separate from
+       "today" — so at a glance it's obvious what's behind you vs ahead,
+       even without leaving the current month. */
+    .cal-day.past:not(.today) {
+      opacity: 0.42;
+    }
+
+    /* Small dot for non-exam events (Deadline/Class/Other), so every
+       event type shows up on the grid, not just exams. */
+    .cal-day.has-event:not(.exam-day)::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--moss-dark);
+    }
+
+    .cal-day.today.has-event:not(.exam-day)::after {
+      background: var(--cream);
+    }
+
+    .legend-dot-event {
+      width: 8px;
+      height: 8px;
+      background: var(--moss-dark);
+      margin: 2px;
+      border-radius: 50%;
     }
 
     .calendar-legend {
@@ -1216,6 +1276,25 @@
       padding: 10px;
       border-bottom: 1px solid var(--border);
       font-size: 0.85rem;
+    }
+
+    .inline-list-row.is-past-event {
+      opacity: 0.6;
+    }
+
+    .past-tag {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-mut);
+      background: var(--cream-95);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      margin-left: 4px;
+      vertical-align: middle;
     }
 
     .inline-list-row span {
