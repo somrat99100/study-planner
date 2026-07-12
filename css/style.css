@@ -1912,6 +1912,77 @@
       font-weight: 600;
     }
 
+/* ─── FOOTER ─── */
+.app-footer {
+  margin-top: 32px;
+  padding: 24px 20px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.footer-heading {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+  color: var(--text-main);
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-mut);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: var(--cream);
+  transition: all 0.15s;
+  width: fit-content;
+}
+
+.footer-link:hover {
+  border-color: var(--moss);
+  color: var(--moss-dark);
+  background: var(--cream-95);
+}
+
+.footer-link-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.footer-link-whatsapp {
+  background: #25D366;
+  border-color: #25D366;
+  color: #fff;
+  font-weight: 600;
+}
+
+.footer-link-whatsapp:hover {
+  background: #1ebc59;
+  border-color: #1ebc59;
+  color: #fff;
+}
+
+.footer-ai-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.footer-ai-grid .footer-link {
+  padding: 6px 10px;
+}
+
 /* ─── Loading overlay (shown between login success and first render) ─── */
 #loadOverlay {
   position: fixed;
