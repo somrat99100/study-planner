@@ -1975,6 +1975,20 @@
   color: #fff;
 }
 
+.footer-link-newspaper {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 0 8px rgba(196, 108, 74, 0.35);
+}
+
+.footer-link-newspaper:hover {
+  background: var(--terracotta-dark, #a8503a);
+  border-color: var(--terracotta-dark, #a8503a);
+  color: #fff;
+}
+
 .footer-ai-grid {
   flex-direction: row;
   flex-wrap: wrap;
