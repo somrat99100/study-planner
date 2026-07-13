@@ -94,6 +94,57 @@
       }, 3500);
     }
 
+    // Fun little congratulations popup — fires whenever a day gets marked
+    // done, so ticking something off feels rewarding instead of just
+    // flipping a checkbox. Confetti bursts outward from center, a message
+    // bubble pops in on top, then it all fades and cleans itself up.
+    const CELEBRATE_MESSAGES = [
+      { emoji: '🎉', text: 'Nice work!' },
+      { emoji: '🌱', text: 'Keep growing!' },
+      { emoji: '✅', text: 'Task crushed!' },
+      { emoji: '🔥', text: "You're on a roll!" },
+      { emoji: '💪', text: 'One step closer!' },
+      { emoji: '⭐', text: 'Great job!' }
+    ];
+    const CELEBRATE_COLORS = ['#6b9b5e', '#4a6e44', '#9bc87f', '#f5d76e', '#e8a33d', '#fefdf8'];
+
+    function celebrateDone(subText) {
+      const overlay = document.createElement('div');
+      overlay.className = 'celebrate-overlay';
+
+      // Confetti pieces
+      const pieceCount = 22;
+      for (let i = 0; i < pieceCount; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        const angle = (Math.PI * 2 * i) / pieceCount + (Math.random() * 0.5 - 0.25);
+        const distance = 90 + Math.random() * 110;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance - 40; // slight upward bias before falling
+        piece.style.setProperty('--dx', `${dx}px`);
+        piece.style.setProperty('--dy', `${dy}px`);
+        piece.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+        piece.style.background = CELEBRATE_COLORS[i % CELEBRATE_COLORS.length];
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        piece.style.animationDuration = `${1 + Math.random() * 0.6}s`;
+        piece.style.animationDelay = `${Math.random() * 0.1}s`;
+        overlay.appendChild(piece);
+      }
+
+      const pick = CELEBRATE_MESSAGES[Math.floor(Math.random() * CELEBRATE_MESSAGES.length)];
+      const bubble = document.createElement('div');
+      bubble.className = 'celebrate-bubble';
+      bubble.innerHTML = `
+        <span class="celebrate-emoji">${pick.emoji}</span>
+        <span>${escapeHTML(pick.text)}</span>
+        ${subText ? `<span class="celebrate-sub">${escapeHTML(subText)}</span>` : ''}
+      `;
+      overlay.appendChild(bubble);
+
+      document.body.appendChild(overlay);
+      setTimeout(() => overlay.remove(), 2000);
+    }
+
     // Pulls the week number out of a task name like "Week 3" → 3. Falls
     // back to 0 (sorts first) if the name doesn't contain a number.
     function weekNumOf(name) {
@@ -533,7 +584,14 @@
       if (diffDays > maxDays) diffDays = maxDays; // plan finished → pin to last day
 
       const week = Math.floor(diffDays / 7) + 1;
-      const day = diffDays % 7;
+      // Day index must match the real-world weekday, not just
+      // (days since start) % 7 — that only lined up with the calendar
+      // when the plan happened to start on a Saturday. The day-checks
+      // grid is always ordered [Sat, Sun, Mon, Tue, Wed, Thu, Fri], so
+      // convert the pointer date's actual JS weekday (Sun=0..Sat=6)
+      // into that same Sat-first ordering.
+      const pointerDate = new Date(start.getTime() + diffDays * 86400000);
+      const day = (pointerDate.getDay() + 1) % 7;
       return { week, day };
     }
 
@@ -823,7 +881,7 @@
               <span class="cat-badge" style="--cat-color:${catColor};">${escapeHTML(cat.category)}</span>
               ${cat.desc ? `<div class="cat-target-sub">${escapeHTML(cat.desc)}</div>` : ''}
             </div>
-            <div class="progress-ring" style="--progress: ${progress * 3.6}deg;">${progress}%</div>
+            <div class="progress-ring" style="--progress: ${progress * 3.6}deg;" data-full="${progress >= 100}"><span class="progress-ring-text">${progress}%</span></div>
           </div>
           <div class="progress-bar">
             <div class="progress-fill" style="width: ${progress}%;" data-progress="${progressLevel}"></div>
@@ -867,6 +925,11 @@
       // Cap at 7 (one week)
       const finalNext = Math.min(next, 7);
       cat.completed = finalNext;
+
+      // Only celebrate forward progress (marking done), not unchecking.
+      if (finalNext > previous) {
+        celebrateDone(finalNext >= 7 ? `${cat.category} — week complete!` : null);
+      }
 
       // Repaint immediately, without waiting on Firestore.
       renderTasks();
