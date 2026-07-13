@@ -472,6 +472,16 @@
   <!-- TOASTS — small popup success/error messages, replaces native alert() -->
   <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
 
+  <!-- CONGRATS POPUP — celebratory overlay shown whenever an item is checked off as done -->
+  <div id="congratsOverlay" class="congrats-overlay" aria-live="assertive">
+    <div class="congrats-card">
+      <div class="congrats-burst" id="congratsBurst"></div>
+      <div class="congrats-emoji">🎉</div>
+      <div class="congrats-title" id="congratsTitle">Great job!</div>
+      <div class="congrats-sub" id="congratsSub">Task completed</div>
+    </div>
+  </div>
+
   <script type="module" src="js/script.js"></script>
 </body>
 </html>
