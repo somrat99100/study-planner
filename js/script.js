@@ -831,8 +831,10 @@
           <div class="day-checks">
             ${[...Array(daysPerWeek)].map((_, i) => {
               const dayNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+              const { week: todayWeek, day: todayDayIndex } = getTodayPointer();
+              const isToday = appState.currentWeek === todayWeek && i === todayDayIndex;
               return `
-              <div class="day-check${i < completed ? ' done' : ''}" data-cat="${cat.id}" data-day="${i}" title="Day ${i + 1} (${dayNames[i]})">
+              <div class="day-check${i < completed ? ' done' : ''}${isToday ? ' today' : ''}" data-cat="${cat.id}" data-day="${i}" title="Day ${i + 1} (${dayNames[i]})${isToday ? ' — today' : ''}">
                 ${dayNames[i]}
               </div>
             `}).join('')}

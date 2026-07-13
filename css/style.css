@@ -358,6 +358,23 @@
       box-shadow: none;
     }
 
+    .day-check.today {
+      border: 3px solid var(--moss-dark);
+      box-shadow: 0 0 0 2px var(--cream), 0 0 8px rgba(85, 135, 74, 0.4);
+      transform: scale(1.1);
+    }
+
+    .day-check.today:hover:not(.locked) {
+      border-color: var(--moss-dark);
+      box-shadow: 0 0 0 2px var(--cream), 0 0 12px rgba(85, 135, 74, 0.6);
+      transform: scale(1.15) translateY(-2px);
+    }
+
+    .day-check.today.done {
+      border-color: var(--moss-dark);
+      box-shadow: 0 0 0 2px var(--cream), 0 0 12px rgba(85, 135, 74, 0.5);
+    }
+
     .day-check.pending-sync {
       opacity: 0.85;
     }
