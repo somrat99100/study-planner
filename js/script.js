@@ -808,6 +808,7 @@
       // Task cards (one per category, showing all 7 days for this week).
       // The sequential "which category is next" checklist lives in the
       // 🎯 Today's Focus sidebar box instead — no need to duplicate it here.
+      const { week: todayWeek, day: todayDayIndex } = getTodayPointer();
       weekCats.forEach(cat => {
         const card = document.createElement('div');
         const completed = Number(cat.completed) || 0;
@@ -831,8 +832,9 @@
           <div class="day-checks">
             ${[...Array(daysPerWeek)].map((_, i) => {
               const dayNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+              const isToday = weekNum === todayWeek && i === todayDayIndex ? ' today' : '';
               return `
-              <div class="day-check${i < completed ? ' done' : ''}" data-cat="${cat.id}" data-day="${i}" title="Day ${i + 1} (${dayNames[i]})">
+              <div class="day-check${i < completed ? ' done' : ''}${isToday}" data-cat="${cat.id}" data-day="${i}" title="Day ${i + 1} (${dayNames[i]})">
                 ${dayNames[i]}
               </div>
             `}).join('')}
