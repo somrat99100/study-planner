@@ -1,4 +1,4 @@
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { initializeFirestore, persistentLocalCache, collection, getDocs, addDoc, updateDoc, deleteDoc, setDoc, doc, getDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -658,11 +658,16 @@
         day: '2-digit', month: '2-digit', year: '2-digit'
       });
 
-      // Calculate progress: completed items / (7 days per week × number of weeks × categories)
-      // Each category should be completed 7 times (once per day for a week), then the next week repeats
-      const numWeeks = Math.ceil(appState.plan.totalDays / 7);
+      // Calculate progress: completed items / (7 days per week × categories)
+      // NOTE: appState.plan.categories already has ONE ENTRY PER WEEK PER TASK
+      // (each entry's name embeds its own week number, e.g. "Week 3 - BAU"), so
+      // categories.length already spans every week. Each entry's own target is
+      // just 7 (one checkbox per day of ITS week) — do not multiply by numWeeks
+      // again, or the target balloons to numWeeks× too large (this was the bug
+      // that produced the inflated "4459" denominator and made 6 completed
+      // weeks look like ~3.8% instead of ~50%).
       const numCats = appState.plan.categories.length;
-      const totalTarget = numWeeks * 7 * numCats;
+      const totalTarget = numCats * 7;
       const totalCompleted = appState.plan.categories.reduce((sum, cat) => sum + (Number(cat.completed) || 0), 0);
       const overallProgress = totalTarget > 0 ? Math.round((totalCompleted / totalTarget) * 100 * 10) / 10 : 0;
 
