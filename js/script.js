@@ -677,14 +677,26 @@
       const bulbHeight = 83; // matches the SVG triangle geometry in index.html
       const topSand = document.getElementById('hourglassTopSand');
       const bottomSand = document.getElementById('hourglassBottomSand');
+      const topWave = document.getElementById('hourglassTopWave');
+      const bottomWave = document.getElementById('hourglassBottomWave');
       if (topSand && bottomSand) {
         const topRemaining = (1 - timeProgress) * bulbHeight;
+        const topY = 108 - topRemaining;
         topSand.setAttribute('height', topRemaining.toFixed(1));
-        topSand.setAttribute('y', (108 - topRemaining).toFixed(1));
+        topSand.setAttribute('y', topY.toFixed(1));
+        // Gentle S-curve across the sand's current surface line, so it reads
+        // as a soft, slightly uneven pile rather than a flat cut edge.
+        if (topWave) {
+          topWave.setAttribute('d', `M33,${topY.toFixed(1)} Q52,${(topY - 2.4).toFixed(1)} 70,${topY.toFixed(1)} Q88,${(topY + 2.4).toFixed(1)} 107,${topY.toFixed(1)}`);
+        }
 
         const bottomFilled = timeProgress * bulbHeight;
+        const bottomY = 195 - bottomFilled;
         bottomSand.setAttribute('height', bottomFilled.toFixed(1));
-        bottomSand.setAttribute('y', (195 - bottomFilled).toFixed(1));
+        bottomSand.setAttribute('y', bottomY.toFixed(1));
+        if (bottomWave) {
+          bottomWave.setAttribute('d', `M33,${bottomY.toFixed(1)} Q52,${(bottomY - 2.4).toFixed(1)} 70,${bottomY.toFixed(1)} Q88,${(bottomY + 2.4).toFixed(1)} 107,${bottomY.toFixed(1)}`);
+        }
       }
       const captionEl = document.getElementById('hourglassCaption');
       if (captionEl) {
