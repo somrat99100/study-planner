@@ -118,20 +118,54 @@
         <div class="panel-card fade-in">
           <div class="panel-header">📅 Timeline Progress</div>
           <div class="panel-body">
-            <div class="panel-row">
-              <div class="panel-row-label">Days Completed</div>
-              <div class="panel-row-value" id="daysPassed" style="background:var(--cream-90); color:var(--text-main);">0</div>
+            <div class="panel-body-layout">
+              <div class="panel-stats-col">
+                <div class="panel-row">
+                  <div class="panel-row-label">Days Completed</div>
+                  <div class="panel-row-value" id="daysPassed" style="background:var(--cream-90); color:var(--text-main);">0</div>
+                </div>
+                <div class="panel-row">
+                  <div class="panel-row-label">Days Remaining</div>
+                  <div class="panel-row-value" id="daysLeft">100</div>
+                </div>
+                <div class="panel-row overall">
+                  <div class="panel-row-label">Overall Progress</div>
+                  <div class="panel-row-value" id="overallProgress">0%</div>
+                </div>
+                <div class="panel-starts">Starts: <span id="startDateLabel"></span></div>
+                <div class="panel-starts" style="font-size:1.1rem; padding-top:0;">Ends: <span id="endDateLabel"></span></div>
+                <div class="panel-starts" style="font-size:1.1rem; padding-top:0;">Final Ending: <span id="finalEndDateLabel"></span></div>
+              </div>
+
+              <div class="panel-hourglass-col">
+                <svg class="hourglass-svg" id="hourglassSvg" viewBox="0 0 140 220" xmlns="http://www.w3.org/2000/svg">
+                  <!-- wood caps -->
+                  <rect x="20" y="8" width="100" height="14" rx="5" fill="#8a5a34"/>
+                  <rect x="20" y="198" width="100" height="14" rx="5" fill="#8a5a34"/>
+                  <!-- glass outline (hourglass silhouette) -->
+                  <path d="M30,22 L110,22 L74,110 L110,198 L30,198 L66,110 Z"
+                        fill="rgba(255,255,255,0.06)" stroke="#c9a877" stroke-width="2.5" stroke-linejoin="round"/>
+                  <!-- clip paths define the two sand chambers exactly inside the glass -->
+                  <defs>
+                    <clipPath id="topBulbClip">
+                      <polygon points="33,25 107,25 70,108"/>
+                    </clipPath>
+                    <clipPath id="bottomBulbClip">
+                      <polygon points="70,112 33,195 107,195"/>
+                    </clipPath>
+                  </defs>
+                  <!-- top sand: height set dynamically by JS to shrink as time passes -->
+                  <rect id="hourglassTopSand" x="33" y="25" width="74" height="0" fill="#e0a53c" clip-path="url(#topBulbClip)"/>
+                  <!-- bottom sand: height set dynamically by JS to grow as time passes -->
+                  <rect id="hourglassBottomSand" x="33" y="195" width="74" height="0" fill="#e0a53c" clip-path="url(#bottomBulbClip)"/>
+                  <!-- falling grains: purely decorative continuous animation through the neck -->
+                  <circle class="sand-grain" cx="70" cy="106" r="1.6"/>
+                  <circle class="sand-grain sand-grain-2" cx="70" cy="106" r="1.3"/>
+                  <circle class="sand-grain sand-grain-3" cx="70" cy="106" r="1.8"/>
+                </svg>
+                <div class="hourglass-caption" id="hourglassCaption">Time passing…</div>
+              </div>
             </div>
-            <div class="panel-row">
-              <div class="panel-row-label">Days Remaining</div>
-              <div class="panel-row-value" id="daysLeft">100</div>
-            </div>
-            <div class="panel-row overall">
-              <div class="panel-row-label">Overall Progress</div>
-              <div class="panel-row-value" id="overallProgress">0%</div>
-            </div>
-            <div class="panel-starts">Starts: <span id="startDateLabel"></span></div>
-            <div class="panel-starts" style="font-size:1.1rem; padding-top:0;">Ends: <span id="endDateLabel"></span></div>
           </div>
         </div>
 
