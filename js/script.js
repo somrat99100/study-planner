@@ -340,6 +340,18 @@
       // loadData() recalculates the real totalDays from the saved start/end
       // dates the moment they're available.
       appState.plan.totalDays = 90;
+
+      // Keep the hourglass creeping forward through the day on its own —
+      // without this it only re-renders on user interaction (clicking
+      // around, toggling tasks, etc.), so the sand would look frozen for
+      // anyone who just leaves the tab open. Re-running the whole render()
+      // every tick would be wasteful (re-renders tasks/calendar/etc.), so
+      // this only touches the lightweight timeline/hourglass panel.
+      setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          updateTimelinePanel();
+        }
+      }, 60000); // once a minute is plenty smooth for a day-scale fill
     }
 
     function setupEventListeners() {
@@ -671,8 +683,17 @@
       // ── Animated hourglass: reflects CALENDAR TIME passing (days elapsed
       // vs. total plan days) — separate from task-completion Overall Progress
       // above. As time passes, the top chamber empties and the bottom fills.
+      // Uses FRACTIONAL days (actual elapsed ms since midnight of start date,
+      // divided by 1 day) rather than whole daysPassed, so the hourglass
+      // creeps forward continuously through the day instead of jumping once
+      // at midnight. daysPassed/daysLeft above stay whole-number day counts
+      // on purpose — only the hourglass fill uses the fractional value.
+      const fractionalDaysPassed = Math.max(0, Math.min(
+        appState.plan.totalDays,
+        (Date.now() - startDate.getTime()) / 86400000
+      ));
       const timeProgress = appState.plan.totalDays > 0
-        ? Math.max(0, Math.min(1, daysPassed / appState.plan.totalDays))
+        ? Math.max(0, Math.min(1, fractionalDaysPassed / appState.plan.totalDays))
         : 0;
       const bulbHeight = 83; // matches the SVG triangle geometry in index.html
       const topSand = document.getElementById('hourglassTopSand');
