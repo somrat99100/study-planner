@@ -1146,6 +1146,74 @@
       color: var(--text-main);
     }
 
+    /* ─── PANEL LAYOUT: stats on one side, animated hourglass on the other ─── */
+    .panel-body-layout {
+      display: flex;
+      align-items: stretch;
+      gap: 18px;
+    }
+
+    .panel-stats-col {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .panel-hourglass-col {
+      flex: 0 0 150px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-left: 1px dashed var(--border);
+      padding-left: 16px;
+    }
+
+    .hourglass-svg {
+      width: 100px;
+      height: 160px;
+    }
+
+    .hourglass-caption {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted, #6b5b4a);
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    #hourglassTopSand, #hourglassBottomSand {
+      transition: height 0.6s ease, y 0.6s ease;
+    }
+
+    /* Continuous falling-sand grains through the neck — purely decorative,
+       loops forever so it always reads as "time is passing" regardless of
+       the actual day-count percentage, which is reflected by the two
+       sand-level rects above (set dynamically in JS). */
+    .sand-grain {
+      fill: #f5c96b;
+      animation: sandFall 0.9s linear infinite;
+    }
+    .sand-grain-2 { animation-delay: 0.3s; }
+    .sand-grain-3 { animation-delay: 0.6s; }
+
+    @keyframes sandFall {
+      0%   { transform: translateY(0);   opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(9px); opacity: 0; }
+    }
+
+    @media (max-width: 640px) {
+      .panel-body-layout { flex-direction: column; }
+      .panel-hourglass-col {
+        border-left: none;
+        border-top: 1px dashed var(--border);
+        padding-left: 0;
+        padding-top: 16px;
+      }
+    }
+
     @media (max-width: 900px) {
       .dashboard-panels { grid-template-columns: 1fr; }
     }
