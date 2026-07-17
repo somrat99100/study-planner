@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { initializeFirestore, persistentLocalCache, collection, getDocs, addDoc, updateDoc, deleteDoc, setDoc, doc, getDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -657,6 +657,41 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('endDateLabel').textContent = endDate.toLocaleDateString('en-GB', {
         day: '2-digit', month: '2-digit', year: '2-digit'
       });
+
+      // "Final Ending" always shows the TRUE last day of the whole plan
+      // (startDate + totalDays - 1) — driven directly by the start date and
+      // day-count/duration saved in the profile, regardless of which week is
+      // currently selected in the dropdown above.
+      const lastDayOfPlan = Math.max(1, appState.plan.totalDays) - 1;
+      const finalEndDate = new Date(startDate.getTime() + lastDayOfPlan * 86400000);
+      document.getElementById('finalEndDateLabel').textContent = finalEndDate.toLocaleDateString('en-GB', {
+        day: '2-digit', month: '2-digit', year: '2-digit'
+      });
+
+      // ── Animated hourglass: reflects CALENDAR TIME passing (days elapsed
+      // vs. total plan days) — separate from task-completion Overall Progress
+      // above. As time passes, the top chamber empties and the bottom fills.
+      const timeProgress = appState.plan.totalDays > 0
+        ? Math.max(0, Math.min(1, daysPassed / appState.plan.totalDays))
+        : 0;
+      const bulbHeight = 83; // matches the SVG triangle geometry in index.html
+      const topSand = document.getElementById('hourglassTopSand');
+      const bottomSand = document.getElementById('hourglassBottomSand');
+      if (topSand && bottomSand) {
+        const topRemaining = (1 - timeProgress) * bulbHeight;
+        topSand.setAttribute('height', topRemaining.toFixed(1));
+        topSand.setAttribute('y', (108 - topRemaining).toFixed(1));
+
+        const bottomFilled = timeProgress * bulbHeight;
+        bottomSand.setAttribute('height', bottomFilled.toFixed(1));
+        bottomSand.setAttribute('y', (195 - bottomFilled).toFixed(1));
+      }
+      const captionEl = document.getElementById('hourglassCaption');
+      if (captionEl) {
+        captionEl.textContent = timeProgress >= 1
+          ? 'Plan duration complete'
+          : `${Math.round(timeProgress * 100)}% of time elapsed`;
+      }
 
       // Calculate progress: completed items / (7 days per week × categories)
       // NOTE: appState.plan.categories already has ONE ENTRY PER WEEK PER TASK
