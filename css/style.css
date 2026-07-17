@@ -1176,13 +1176,29 @@
     }
 
     .hourglass-caption {
-      font-size: 0.6rem;
-      font-weight: 700;
-      color: var(--text-muted, #6b5b4a);
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--text, #3a2412);
       text-align: center;
       letter-spacing: 0.02em;
       line-height: 1.2;
       max-width: 76px;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+
+    /* Quick 180° "turn" flourish, triggered once per hour right when the
+       sand finishes draining and the fill resets to top-full/bottom-empty
+       for the next hour — reads as the hourglass being physically flipped. */
+    .hourglass-flip {
+      animation: hourglassFlip 0.7s ease-in-out;
+      transform-origin: 50% 50%;
+    }
+
+    @keyframes hourglassFlip {
+      0%   { transform: rotate(0deg); }
+      55%  { transform: rotate(180deg); }
+      100% { transform: rotate(180deg); }
     }
 
     #hourglassTopSand, #hourglassBottomSand {
