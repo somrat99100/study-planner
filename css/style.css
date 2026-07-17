@@ -1159,49 +1159,64 @@
     }
 
     .panel-hourglass-col {
-      flex: 0 0 150px;
+      flex: 0 0 76px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
       border-left: 1px dashed var(--border);
-      padding-left: 16px;
+      padding-left: 12px;
     }
 
     .hourglass-svg {
-      width: 100px;
-      height: 160px;
+      width: 48px;
+      height: 76px;
+      overflow: visible;
     }
 
     .hourglass-caption {
-      font-size: 0.78rem;
+      font-size: 0.6rem;
       font-weight: 700;
       color: var(--text-muted, #6b5b4a);
       text-align: center;
       letter-spacing: 0.02em;
+      line-height: 1.2;
+      max-width: 76px;
     }
 
     #hourglassTopSand, #hourglassBottomSand {
       transition: height 0.6s ease, y 0.6s ease;
     }
 
-    /* Continuous falling-sand grains through the neck — purely decorative,
-       loops forever so it always reads as "time is passing" regardless of
-       the actual day-count percentage, which is reflected by the two
-       sand-level rects above (set dynamically in JS). */
-    .sand-grain {
-      fill: #f5c96b;
-      animation: sandFall 0.9s linear infinite;
+    /* Continuously-flowing dashed stream through the neck. Its dash pattern
+       scrolls in an endless loop, so — unlike a single subtle wobble — this
+       is always unmistakably in motion, reading as an actual trickle of
+       sand rather than a static hourglass. */
+    .sand-stream {
+      animation: sandStreamFlow 0.5s linear infinite;
     }
-    .sand-grain-2 { animation-delay: 0.3s; }
-    .sand-grain-3 { animation-delay: 0.6s; }
+
+    @keyframes sandStreamFlow {
+      to { stroke-dashoffset: -6; }
+    }
+
+    /* Falling grains: a longer, clearer drop through the neck, staggered so
+       the three overlap and the flow never looks empty between falls. Purely
+       decorative and independent of the day-count percentage, which is
+       reflected by the two sand-level rects (set dynamically in JS). */
+    .sand-grain {
+      fill: #ffe6ad;
+      animation: sandFall 1.1s linear infinite;
+    }
+    .sand-grain-2 { animation-delay: 0.37s; }
+    .sand-grain-3 { animation-delay: 0.74s; }
 
     @keyframes sandFall {
-      0%   { transform: translateY(0);   opacity: 0; }
-      10%  { opacity: 1; }
-      90%  { opacity: 1; }
-      100% { transform: translateY(9px); opacity: 0; }
+      0%   { transform: translateY(-11px); opacity: 0; }
+      12%  { opacity: 1; }
+      88%  { opacity: 1; }
+      100% { transform: translateY(11px); opacity: 0; }
     }
 
     @media (max-width: 640px) {
@@ -1210,8 +1225,11 @@
         border-left: none;
         border-top: 1px dashed var(--border);
         padding-left: 0;
-        padding-top: 16px;
+        padding-top: 12px;
+        flex-direction: row;
+        gap: 10px;
       }
+      .hourglass-caption { max-width: none; }
     }
 
     @media (max-width: 900px) {
