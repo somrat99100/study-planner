@@ -616,13 +616,16 @@
 
     // ── Real-time hourglass ──────────────────────────────────────────────
     // Independent of the study plan's duration: this is a literal hourglass
-    // that drains once every REAL hour, driven by the Bangladesh clock. Top
-    // bulb starts full, sand drains into the bottom bulb over 60 minutes;
-    // right as the clock ticks over to the next hour (:00:00), it "turns"
-    // (a quick flip flourish) and the cycle restarts — top full again,
-    // draining over the next hour, forever. The caption underneath shows
-    // the live Bangladesh time (H:M:S), bold, instead of a percentage.
+    // that drains once every 30 REAL minutes, driven by the Bangladesh
+    // clock. Top bulb starts full, water drains into the bottom bulb over
+    // 30 minutes; right as the clock ticks over to the next :00 or :30, it
+    // "turns" (a quick flip flourish) and the cycle restarts — top full
+    // again, draining over the next 30 minutes, forever. The caption
+    // underneath shows the live Bangladesh time (H:M:S), bold, instead of a
+    // percentage.
     let lastHourglassProgress = null;
+    const HOURGLASS_PERIOD_MINUTES = 30;
+    const HOURGLASS_PERIOD_SECONDS = HOURGLASS_PERIOD_MINUTES * 60;
 
     function getBangladeshTimeParts(date = new Date()) {
       const parts = new Intl.DateTimeFormat('en-GB', {
@@ -646,8 +649,12 @@
 
     function updateHourglassClock() {
       const { hour, minute, second, ms } = getBangladeshTimeParts();
-      const secondsIntoHour = minute * 60 + second + ms / 1000;
-      const progress = Math.max(0, Math.min(1, secondsIntoHour / 3600));
+      // Position within the current 30-minute block (i.e. minute 0-29 or
+      // 30-59 both map back to 0-29), so the hourglass turns twice an hour —
+      // once at :00 and once at :30.
+      const minuteIntoPeriod = minute % HOURGLASS_PERIOD_MINUTES;
+      const secondsIntoPeriod = minuteIntoPeriod * 60 + second + ms / 1000;
+      const progress = Math.max(0, Math.min(1, secondsIntoPeriod / HOURGLASS_PERIOD_SECONDS));
 
       // Wraparound detection: progress just snapped back near 0 right after
       // sitting near 1 → the hour rolled over, so play the "turn" flourish.
