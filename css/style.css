@@ -1189,28 +1189,42 @@
       transition: height 0.6s ease, y 0.6s ease;
     }
 
-    /* Continuously-flowing dashed stream through the neck. Its dash pattern
-       scrolls in an endless loop, so — unlike a single subtle wobble — this
-       is always unmistakably in motion, reading as an actual trickle of
-       sand rather than a static hourglass. */
+    /* Continuously-flowing speckled stream through the neck — tiny closely-
+       spaced dots rather than dashes, closer to how falling sand actually
+       looks. Its dash pattern scrolls in an endless loop, so this is always
+       unmistakably in motion, reading as a real trickle rather than a
+       static hourglass. */
     .sand-stream {
-      animation: sandStreamFlow 0.5s linear infinite;
+      animation: sandStreamFlow 0.4s linear infinite;
     }
 
     @keyframes sandStreamFlow {
-      to { stroke-dashoffset: -6; }
+      to { stroke-dashoffset: -5.6; }
+    }
+
+    /* Gentle shimmer on the sand's surface line, so the pile reads as loose
+       grains settling rather than a perfectly flat cut edge. */
+    .sand-wave {
+      animation: sandWaveShimmer 2.4s ease-in-out infinite;
+      opacity: 0.75;
+    }
+
+    @keyframes sandWaveShimmer {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(0.6px); }
     }
 
     /* Falling grains: a longer, clearer drop through the neck, staggered so
-       the three overlap and the flow never looks empty between falls. Purely
+       they overlap and the flow never looks empty between falls. Purely
        decorative and independent of the day-count percentage, which is
        reflected by the two sand-level rects (set dynamically in JS). */
     .sand-grain {
       fill: #ffe6ad;
       animation: sandFall 1.1s linear infinite;
     }
-    .sand-grain-2 { animation-delay: 0.37s; }
-    .sand-grain-3 { animation-delay: 0.74s; }
+    .sand-grain-2 { animation-delay: 0.28s; }
+    .sand-grain-3 { animation-delay: 0.55s; }
+    .sand-grain-4 { animation-delay: 0.83s; }
 
     @keyframes sandFall {
       0%   { transform: translateY(-11px); opacity: 0; }
