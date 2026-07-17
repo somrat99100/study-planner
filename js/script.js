@@ -341,17 +341,16 @@
       // dates the moment they're available.
       appState.plan.totalDays = 90;
 
-      // Keep the hourglass creeping forward through the day on its own —
-      // without this it only re-renders on user interaction (clicking
-      // around, toggling tasks, etc.), so the sand would look frozen for
-      // anyone who just leaves the tab open. Re-running the whole render()
-      // every tick would be wasteful (re-renders tasks/calendar/etc.), so
-      // this only touches the lightweight timeline/hourglass panel.
+      // Real-time hourglass: ticks every second so the sand visibly creeps
+      // and the H:M:S caption stays live, without needing user interaction.
+      // Only updateHourglassClock() runs every second (cheap: a few DOM
+      // attribute writes) — the heavier updateTimelinePanel()/render() paths
+      // are left alone and still only run on actual data/view changes.
       setInterval(() => {
         if (document.visibilityState === 'visible') {
-          updateTimelinePanel();
+          updateHourglassClock();
         }
-      }, 60000); // once a minute is plenty smooth for a day-scale fill
+      }, 1000);
     }
 
     function setupEventListeners() {
@@ -600,6 +599,7 @@
 
     function render() {
       updateTimelinePanel();
+      updateHourglassClock();
       renderCategoryProgress();
       renderWeeklySummary();
       renderDailyCompletionLog();
@@ -611,6 +611,85 @@
       renderSidebarDtTasks();
       if (document.getElementById('profileView').style.display !== 'none') {
         renderProfileView();
+      }
+    }
+
+    // ── Real-time hourglass ──────────────────────────────────────────────
+    // Independent of the study plan's duration: this is a literal hourglass
+    // that drains once every REAL hour, driven by the Bangladesh clock. Top
+    // bulb starts full, sand drains into the bottom bulb over 60 minutes;
+    // right as the clock ticks over to the next hour (:00:00), it "turns"
+    // (a quick flip flourish) and the cycle restarts — top full again,
+    // draining over the next hour, forever. The caption underneath shows
+    // the live Bangladesh time (H:M:S), bold, instead of a percentage.
+    let lastHourglassProgress = null;
+
+    function getBangladeshTimeParts(date = new Date()) {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Dhaka',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).formatToParts(date);
+      const map = {};
+      parts.forEach(p => { map[p.type] = p.value; });
+      let hour = parseInt(map.hour, 10);
+      if (hour === 24) hour = 0; // some locales render midnight as "24"
+      return {
+        hour,
+        minute: parseInt(map.minute, 10),
+        second: parseInt(map.second, 10),
+        ms: date.getMilliseconds()
+      };
+    }
+
+    function updateHourglassClock() {
+      const { hour, minute, second, ms } = getBangladeshTimeParts();
+      const secondsIntoHour = minute * 60 + second + ms / 1000;
+      const progress = Math.max(0, Math.min(1, secondsIntoHour / 3600));
+
+      // Wraparound detection: progress just snapped back near 0 right after
+      // sitting near 1 → the hour rolled over, so play the "turn" flourish.
+      if (lastHourglassProgress !== null && progress < lastHourglassProgress - 0.5) {
+        const svg = document.getElementById('hourglassSvg');
+        if (svg) {
+          svg.classList.remove('hourglass-flip');
+          void svg.offsetWidth; // force reflow so the animation can re-trigger
+          svg.classList.add('hourglass-flip');
+        }
+      }
+      lastHourglassProgress = progress;
+
+      const bulbHeight = 83; // matches the SVG bulb geometry in index.html
+      const topSand = document.getElementById('hourglassTopSand');
+      const bottomSand = document.getElementById('hourglassBottomSand');
+      const topWave = document.getElementById('hourglassTopWave');
+      const bottomWave = document.getElementById('hourglassBottomWave');
+      if (topSand && bottomSand) {
+        const topRemaining = (1 - progress) * bulbHeight;
+        const topY = 108 - topRemaining;
+        topSand.setAttribute('height', topRemaining.toFixed(1));
+        topSand.setAttribute('y', topY.toFixed(1));
+        if (topWave) {
+          topWave.setAttribute('d', `M33,${topY.toFixed(1)} Q52,${(topY - 2.4).toFixed(1)} 70,${topY.toFixed(1)} Q88,${(topY + 2.4).toFixed(1)} 107,${topY.toFixed(1)}`);
+        }
+
+        const bottomFilled = progress * bulbHeight;
+        const bottomY = 195 - bottomFilled;
+        bottomSand.setAttribute('height', bottomFilled.toFixed(1));
+        bottomSand.setAttribute('y', bottomY.toFixed(1));
+        if (bottomWave) {
+          bottomWave.setAttribute('d', `M33,${bottomY.toFixed(1)} Q52,${(bottomY - 2.4).toFixed(1)} 70,${bottomY.toFixed(1)} Q88,${(bottomY + 2.4).toFixed(1)} 107,${bottomY.toFixed(1)}`);
+        }
+      }
+
+      const captionEl = document.getElementById('hourglassCaption');
+      if (captionEl) {
+        const hh = String(hour).padStart(2, '0');
+        const mm = String(minute).padStart(2, '0');
+        const ss = String(second).padStart(2, '0');
+        captionEl.textContent = `${hh}:${mm}:${ss}`;
       }
     }
 
@@ -680,51 +759,9 @@
         day: '2-digit', month: '2-digit', year: '2-digit'
       });
 
-      // ── Animated hourglass: reflects CALENDAR TIME passing (days elapsed
-      // vs. total plan days) — separate from task-completion Overall Progress
-      // above. As time passes, the top chamber empties and the bottom fills.
-      // Uses FRACTIONAL days (actual elapsed ms since midnight of start date,
-      // divided by 1 day) rather than whole daysPassed, so the hourglass
-      // creeps forward continuously through the day instead of jumping once
-      // at midnight. daysPassed/daysLeft above stay whole-number day counts
-      // on purpose — only the hourglass fill uses the fractional value.
-      const fractionalDaysPassed = Math.max(0, Math.min(
-        appState.plan.totalDays,
-        (Date.now() - startDate.getTime()) / 86400000
-      ));
-      const timeProgress = appState.plan.totalDays > 0
-        ? Math.max(0, Math.min(1, fractionalDaysPassed / appState.plan.totalDays))
-        : 0;
-      const bulbHeight = 83; // matches the SVG triangle geometry in index.html
-      const topSand = document.getElementById('hourglassTopSand');
-      const bottomSand = document.getElementById('hourglassBottomSand');
-      const topWave = document.getElementById('hourglassTopWave');
-      const bottomWave = document.getElementById('hourglassBottomWave');
-      if (topSand && bottomSand) {
-        const topRemaining = (1 - timeProgress) * bulbHeight;
-        const topY = 108 - topRemaining;
-        topSand.setAttribute('height', topRemaining.toFixed(1));
-        topSand.setAttribute('y', topY.toFixed(1));
-        // Gentle S-curve across the sand's current surface line, so it reads
-        // as a soft, slightly uneven pile rather than a flat cut edge.
-        if (topWave) {
-          topWave.setAttribute('d', `M33,${topY.toFixed(1)} Q52,${(topY - 2.4).toFixed(1)} 70,${topY.toFixed(1)} Q88,${(topY + 2.4).toFixed(1)} 107,${topY.toFixed(1)}`);
-        }
-
-        const bottomFilled = timeProgress * bulbHeight;
-        const bottomY = 195 - bottomFilled;
-        bottomSand.setAttribute('height', bottomFilled.toFixed(1));
-        bottomSand.setAttribute('y', bottomY.toFixed(1));
-        if (bottomWave) {
-          bottomWave.setAttribute('d', `M33,${bottomY.toFixed(1)} Q52,${(bottomY - 2.4).toFixed(1)} 70,${bottomY.toFixed(1)} Q88,${(bottomY + 2.4).toFixed(1)} 107,${bottomY.toFixed(1)}`);
-        }
-      }
-      const captionEl = document.getElementById('hourglassCaption');
-      if (captionEl) {
-        captionEl.textContent = timeProgress >= 1
-          ? 'Plan duration complete'
-          : `${Math.round(timeProgress * 100)}% of time elapsed`;
-      }
+      // NOTE: the hourglass itself is no longer driven by plan-time-elapsed —
+      // see updateHourglassClock() below, which runs on its own 1-second
+      // interval and cycles the sand once every real hour.
 
       // Calculate progress: completed items / (7 days per week × categories)
       // NOTE: appState.plan.categories already has ONE ENTRY PER WEEK PER TASK
