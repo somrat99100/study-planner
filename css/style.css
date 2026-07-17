@@ -1230,23 +1230,39 @@
       50%      { transform: translateY(0.6px); }
     }
 
-    /* Falling grains: a longer, clearer drop through the neck, staggered so
-       they overlap and the flow never looks empty between falls. Purely
-       decorative and independent of the day-count percentage, which is
-       reflected by the two sand-level rects (set dynamically in JS). */
-    .sand-grain {
-      fill: #ffe6ad;
-      animation: sandFall 1.1s linear infinite;
+    /* The main falling drop: travels a long, unmistakable distance through
+       the neck, stretching taller as it accelerates (gravity feel) then
+       squashing flat for an instant on impact before fading into the pile.
+       Sized and timed to be clearly visible, unlike the old faint grains. */
+    .water-drop {
+      animation: waterDropFall 1.3s cubic-bezier(0.55, 0, 0.85, 0.35) infinite;
+      transform-box: fill-box;
+      transform-origin: center;
     }
-    .sand-grain-2 { animation-delay: 0.28s; }
-    .sand-grain-3 { animation-delay: 0.55s; }
-    .sand-grain-4 { animation-delay: 0.83s; }
 
-    @keyframes sandFall {
-      0%   { transform: translateY(-11px); opacity: 0; }
-      12%  { opacity: 1; }
-      88%  { opacity: 1; }
-      100% { transform: translateY(11px); opacity: 0; }
+    @keyframes waterDropFall {
+      0%   { transform: translateY(-9px) scaleY(0.85); opacity: 0; }
+      8%   { opacity: 1; }
+      55%  { transform: translateY(6px) scaleY(1.35); opacity: 1; }
+      78%  { transform: translateY(13px) scaleY(0.55); opacity: 1; }
+      92%  { transform: translateY(14px) scaleY(0.3); opacity: 0.4; }
+      100% { transform: translateY(14px) scaleY(0.3); opacity: 0; }
+    }
+
+    /* Ripple ring that pulses outward right as the drop hits the pile below,
+       reinforcing the impact so the fall reads as unmistakably visible. */
+    .water-splash {
+      animation: waterSplashPulse 1.3s ease-out infinite;
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    @keyframes waterSplashPulse {
+      0%, 74%  { opacity: 0; transform: scale(0.3); }
+      78%      { opacity: 0.9; transform: scale(0.6); }
+      95%      { opacity: 0; transform: scale(1.6); }
+      100%     { opacity: 0; transform: scale(1.6); }
     }
 
     @media (max-width: 640px) {
