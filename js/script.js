@@ -853,7 +853,8 @@
       selector.onchange = () => { appState.currentWeek = parseInt(selector.value, 10); updateTimelinePanel(); renderTasks(); };
     }
 
-    // Shows one week at a time (Week N = 7 days: Sat-Fri)
+    // Shows one week at a time (Week N = 7 real calendar days starting from
+    // whatever weekday plan.startDate falls on)
     // For each day, displays all categories that need to be completed that day
     // User checks off categories sequentially within each day
     // Progress = (total categories completed across all days) / (7 days × categories per day)
@@ -910,12 +911,12 @@
           </div>
           <div class="day-checks">
             ${[...Array(daysPerWeek)].map((_, i) => {
-              const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              const dayName = dayLabelFor(appState.currentWeek, i);
               const { week: todayWeek, day: todayDayIndex } = getTodayPointer();
               const isToday = appState.currentWeek === todayWeek && i === todayDayIndex;
               return `
-              <div class="day-check${i < completed ? ' done' : ''}${isToday ? ' today' : ''}" data-cat="${cat.id}" data-day="${i}" title="Day ${i + 1} (${dayNames[i]})${isToday ? ' — today' : ''}">
-                ${dayNames[i]}
+              <div class="day-check${i < completed ? ' done' : ''}${isToday ? ' today' : ''}" data-cat="${cat.id}" data-day="${i}" title="Day ${i + 1} (${dayName})${isToday ? ' — today' : ''}">
+                ${dayName}
               </div>
             `}).join('')}
           </div>
@@ -996,8 +997,10 @@
       focusCard.classList.remove('blinking'); // no more whole-box blinking
 
       const { week: todayWeek, day: todayDayIndex } = getTodayPointer();
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const todayName = dayNames[todayDayIndex];
+      // Derive the weekday name from the real calendar date (start date + offset)
+      // rather than assuming day-index 0 is Sunday — weeks can now start on any
+      // weekday, matching whatever start date was actually saved.
+      const todayName = dateForWeekDay(todayWeek, todayDayIndex).toLocaleDateString('en-US', { weekday: 'long' });
 
       const weekCats = appState.plan.categories
         .filter(cat => weekNumOf(cat.name) === todayWeek)
@@ -1280,34 +1283,23 @@
         return;
       }
 
-      // Weeks always need to begin on Sunday (Day 1 = Sunday, ... Day 7 = Saturday).
-      // If a user picks a start date that isn't a Sunday, roll it back to the
-      // Sunday on/before the picked date, so the picked date still falls inside
-      // Week 1 — rather than silently starting the week on the wrong weekday.
+      // Weeks begin on whatever real calendar weekday the user actually picks
+      // as the start date — Day 1 of Week 1 is always the picked start date
+      // itself, and every subsequent week begins 7 days later on that same
+      // weekday. No forced alignment to Sunday (or any other fixed weekday).
       const pickedStart = new Date(startVal + 'T00:00:00');
-      const weekday = pickedStart.getDay(); // 0 = Sunday
-      const sundayStart = new Date(pickedStart);
-      sundayStart.setDate(sundayStart.getDate() - weekday);
-      const adjustedStartVal = toISODate(sundayStart);
-      const wasAdjusted = adjustedStartVal !== startVal;
 
       try {
-        await setDoc(doc(db, "settings", "plan"), { startDate: adjustedStartVal, endDate: endVal });
-        appState.plan.startDate = new Date(adjustedStartVal + 'T00:00:00');
+        await setDoc(doc(db, "settings", "plan"), { startDate: startVal, endDate: endVal });
+        appState.plan.startDate = pickedStart;
         appState.plan.endDate = endVal;
-        const s = new Date(adjustedStartVal + 'T00:00:00');
+        const s = pickedStart;
         const e = new Date(endVal + 'T00:00:00');
         appState.plan.totalDays = Math.max(1, Math.round((e - s) / 86400000) + 1);
 
-        // Reflect the actually-applied (Sunday-aligned) date back into the input
-        // so the field never shows a stale, un-adjusted value.
-        document.getElementById('pfPlanStartDate').value = adjustedStartVal;
-
         render();
         msgEl.style.color = 'var(--moss)';
-        msgEl.textContent = wasAdjusted
-          ? `Plan duration saved. Start date shifted back to Sunday, ${sundayStart.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}, so weeks begin on Sunday.`
-          : 'Plan duration saved.';
+        msgEl.textContent = 'Plan duration saved.';
       } catch (error) {
         msgEl.textContent = `Could not save: ${error.code || error.message}`;
       }
